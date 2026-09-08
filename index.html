@@ -86,7 +86,6 @@
   .hintbox{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
   .hintbox .h{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;margin-top:8px}
   .x{float:right;color:var(--dim);cursor:pointer;font-size:18px;line-height:1}
-  .reveal{margin:8px 0 22px}
   .foot{color:var(--dim);font-size:12px;font-family:var(--mono);text-align:center;margin:28px 0 8px}
   @media(max-width:520px){.status{text-align:left}}
 </style>
@@ -114,10 +113,6 @@
 
   <h2>Leaderboard</h2>
   <table id="board"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
-
-  <div class="reveal" id="revealWrap" style="display:none">
-    <button id="revealBtn" class="ghost">Reveal answers</button>
-  </div>
 
   <h2>Challenges<span id="chTotal"></span></h2>
   <div id="chArea"><div class="sub" id="chNote">loading…</div><div class="catgrid" id="cats"></div></div>
@@ -189,7 +184,6 @@ async function loadState(){
   else if(STATE.phase==="live"){ph.textContent="LIVE"; c.textContent=fmt(STATE.end-(Date.now()-drift));}
   else if(STATE.phase==="post"){ph.textContent="ended"; c.textContent="00:00:00";}
   else{ph.textContent="not scheduled"; c.textContent="--:--:--";}
-  $("#revealWrap").style.display = STATE.phase==="post" ? "block":"none";
 }
 async function loadBoard(){
   const j=await api("/leaderboard");
@@ -308,6 +302,11 @@ function openChallenge(id){
   const hintCtl = c.has_hint ? (c.hint
       ? `<div class="hintbox"><div class="sub">Hint (unlocked)</div><div class="h">${esc(c.hint)}</div></div>`
       : `<div class="hintbox"><button id="hintBtn" class="ghost">Unlock hint (−${c.hint_cost} pts)</button></div>`) : "";
+  const isPost = STATE && STATE.phase==="post";
+  const ansCtl = `<div class="hintbox">
+    <button id="showAns" class="ghost"${isPost?"":' disabled title="wait for the CTF to end"'}>Show answer</button>
+    <div class="h" id="ansText" style="display:none"></div>
+  </div>`;
   card.innerHTML=`
     <span class="x" id="close">✕</span>
     <div class="cat-lbl">${esc(c.category)}</div>
@@ -319,7 +318,8 @@ function openChallenge(id){
       : `<div class="row"><input type="text" id="ans" placeholder="answer" autocomplete="off"/><button class="primary" id="sub">Submit</button></div>
          <div class="sub" id="att">${c.attempts_left} attempt(s) left</div>
          <div class="msg" id="m"></div>`}
-    ${hintCtl}`;
+    ${hintCtl}
+    ${ansCtl}`;
   $("#close").onclick=closeModal;
   if(!c.solved){
     const inp=$("#ans");
@@ -329,6 +329,18 @@ function openChallenge(id){
     tickHoldoff(c);
   }
   if(c.has_hint && !c.hint){ $("#hintBtn").onclick=()=>doHint(c.id); }
+  if(isPost){
+    $("#showAns").onclick=async()=>{
+      const btn=$("#showAns"), out=$("#ansText");
+      btn.disabled=true; btn.textContent="Loading…";
+      try{
+        const sol=await solutionFor(c.id);
+        out.innerHTML=linkify(sol||"(no solution recorded)");
+        out.style.display="block";
+        btn.style.display="none";
+      }catch(e){ btn.disabled=false; btn.textContent="Show answer"; alert(e.message); }
+    };
+  }
   $("#modal").classList.add("open");
 }
 function tickHoldoff(c){
@@ -367,15 +379,15 @@ async function doHint(id){
 }
 function closeModal(){ $("#modal").classList.remove("open"); }
 $("#modal").onclick=(e)=>{ if(e.target.id==="modal") closeModal(); };
-$("#revealBtn").onclick=async()=>{
-  try{
+
+let SOLUTIONS_CACHE=null;
+async function solutionFor(id){
+  if(!SOLUTIONS_CACHE){
     const j=await api("/solutions");
-    const card=$("#modalCard");
-    card.innerHTML=`<span class="x" id="close">✕</span><h3>Answers</h3>`+
-      j.solutions.map(s=>`<div class="prompt"><b>${esc(s.category)} — ${esc(s.title)}</b><br>${linkify(s.solution||"(none)")}</div>`).join("");
-    $("#close").onclick=closeModal; $("#modal").classList.add("open");
-  }catch(e){ alert(e.message); }
-};
+    SOLUTIONS_CACHE={}; j.solutions.forEach(s=>{SOLUTIONS_CACHE[s.id]=s.solution;});
+  }
+  return SOLUTIONS_CACHE[id];
+}
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function linkify(s){ return esc(s).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>'); }
