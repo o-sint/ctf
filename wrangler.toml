@@ -6,13 +6,13 @@ compatibility_date = "2025-01-01"
 # The frontend fetches /api/* ; everything else falls through to GitHub Pages.
 # Requires the subdomain to be a proxied (orange-cloud) CNAME -> <user>.github.io.
 routes = [
-  { pattern = "ctf.example.com/api/*", zone_name = "example.com" }
+  { pattern = "ctf.mishaal.us/api/*", zone_name = "mishaal.us" }
 ]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "osint_ctf"
-database_id = "REPLACE_WITH_DATABASE_ID"   # from: wrangler d1 create osint_ctf
+database_id = "8dee2635-2ed0-4717-a05b-02b28f7ac90c"
 
 # Secret (do NOT put the value here) — set with:
 #   wrangler secret put BOOTSTRAP_KEY   # long random string; recovery key to reset the admin token
