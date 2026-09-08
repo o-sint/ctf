@@ -75,7 +75,9 @@
       <div class="row">
         <input type="file" id="bulkFile" accept=".json" style="width:auto" />
         <button class="primary" id="bulkBtn">Upload JSON</button>
+        <button id="bulkExport">Download current challenges (backup)</button>
       </div>
+      <div class="dim" style="font-size:12px">"Download current challenges" saves every challenge — including answers — in the exact format this box accepts, so you can restore them later by choosing the file and clicking Upload.</div>
       <div class="msg" id="bulkMsg"></div>
     </div>
 
@@ -203,6 +205,14 @@ $("#bulkBtn").onclick=async()=>{
   try{ const j=await api("/admin/challenges",{method:"POST",body:JSON.stringify(data)});
     $("#bulkMsg").className="msg ok"; $("#bulkMsg").textContent=`Upserted ${j.upserted}. Skipped: ${j.skipped.join(", ")||"none"}.`; loadChallenges(); }
   catch(e){ $("#bulkMsg").className="msg bad"; $("#bulkMsg").textContent=e.message; }
+};
+$("#bulkExport").onclick=async()=>{
+  try{
+    const j=await api("/admin/challenges");
+    if(!j.challenges.length){ $("#bulkMsg").className="msg bad"; $("#bulkMsg").textContent="No challenges to export."; return; }
+    download(slug($("#evName").value||"ctf")+"-challenges-backup.json", JSON.stringify(j.challenges,null,2), "application/json");
+    $("#bulkMsg").className="msg ok"; $("#bulkMsg").textContent=`Downloaded ${j.challenges.length} challenge(s), including answers. Keep this file safe.`;
+  }catch(e){ $("#bulkMsg").className="msg bad"; $("#bulkMsg").textContent=e.message; }
 };
 
 $("#c_new").onclick=()=>{
