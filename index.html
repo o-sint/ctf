@@ -119,7 +119,7 @@
     <button id="revealBtn" class="ghost">Reveal answers</button>
   </div>
 
-  <h2>Challenges</h2>
+  <h2>Challenges<span id="chTotal"></span></h2>
   <div id="chArea"><div class="sub" id="chNote">loading…</div><div class="catgrid" id="cats"></div></div>
 
   <div class="foot">no accounts · username stored in your browser · clearing site data resets your identity · shamelessly vibe coded</div>
@@ -282,8 +282,9 @@ async function loadChallenges(){
   const note=$("#chNote"), cats=$("#cats");
   const j=await api("/challenges?uuid="+encodeURIComponent(UUID));
   CH=j.challenges; const icons=j.icons||{};
-  if(j.phase==="pre"||j.phase==="unset"){ note.textContent = j.phase==="pre"?"Challenges unlock when the event starts.":"No event scheduled yet."; cats.innerHTML=""; return; }
+  if(j.phase==="pre"||j.phase==="unset"){ note.textContent = j.phase==="pre"?"Challenges unlock when the event starts.":"No event scheduled yet."; cats.innerHTML=""; $("#chTotal").textContent=""; return; }
   note.textContent="";
+  $("#chTotal").textContent=" ("+CH.length+")";
   const groups={};
   CH.forEach(c=>{(groups[c.category]=groups[c.category]||[]).push(c);});
   cats.innerHTML="";
