@@ -10,6 +10,25 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Bootstrap-Key",
   "Access-Control-Max-Age": "86400",
 };
+// Default per-category icons (tiny hand-authored SVGs as data URIs). Admins can override any
+// of these via /admin/category-icons; unknown categories fall back to _DEFAULT.
+const DEFAULT_ICONS = {
+  "APIS": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI2IiBjeT0iNiIgcj0iMi41Ii8+PGNpcmNsZSBjeD0iMTgiIGN5PSI2IiByPSIyLjUiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjE4IiByPSIyLjUiLz48bGluZSB4MT0iOCIgeTE9IjcuNSIgeDI9IjEwLjUiIHkyPSIxNiIvPjxsaW5lIHgxPSIxNiIgeTE9IjcuNSIgeDI9IjEzLjUiIHkyPSIxNiIvPjxsaW5lIHgxPSI4LjUiIHkxPSI2IiB4Mj0iMTUuNSIgeTI9IjYiLz48L3N2Zz4=",
+  "CALLER ID": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNSA0aDRsMiA1LTIuNSAxLjVhMTEgMTEgMCAwIDAgNSA1TDE1IDEzbDUgMnY0YTIgMiAwIDAgMS0yIDJBMTYgMTYgMCAwIDEgMyA2YTIgMiAwIDAgMSAyLTJ6Ii8+PC9zdmc+",
+  "CRACKING": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSI1IiB5PSIxMSIgd2lkdGg9IjE0IiBoZWlnaHQ9IjkiIHJ4PSIyIi8+PHBhdGggZD0iTTggMTFWN2E0IDQgMCAwIDEgNy41LTIiLz48L3N2Zz4=",
+  "DEEP WEB": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNSIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjIiLz48L3N2Zz4=",
+  "DOMAIN": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI5Ii8+PHBhdGggZD0iTTMgMTJoMThNMTIgM2ExNCAxNCAwIDAgMSAwIDE4TTEyIDNhMTQgMTQgMCAwIDAgMCAxOCIvPjwvc3ZnPg==",
+  "GEO": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjFzNy03LjIgNy0xMmE3IDcgMCAwIDAtMTQgMGMwIDQuOCA3IDEyIDcgMTJ6Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSI5IiByPSIyLjQiLz48L3N2Zz4=",
+  "GOV": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNCAxMGw4LTUgOCA1Ii8+PHBhdGggZD0iTTUgMTB2OU05IDEwdjlNMTUgMTB2OU0xOSAxMHY5Ii8+PHBhdGggZD0iTTMgMTloMTgiLz48L3N2Zz4=",
+  "IMAGE": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSI0IiB3aWR0aD0iMTgiIGhlaWdodD0iMTYiIHJ4PSIyIi8+PGNpcmNsZSBjeD0iOC41IiBjeT0iOS41IiByPSIxLjYiLz48cGF0aCBkPSJNMjEgMTZsLTUuNS01LjVMOSAxNyIvPjwvc3ZnPg==",
+  "MAPS": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSA0TDMgNnYxNGw2LTIgNiAyIDYtMlY0bC02IDItNi0yeiIvPjxwYXRoIGQ9Ik05IDR2MTRNMTUgNnYxNCIvPjwvc3ZnPg==",
+  "METADATA": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgMTJsLTggOC05LTlWNGg3eiIvPjxjaXJjbGUgY3g9IjcuNSIgY3k9IjcuNSIgcj0iMS40IiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=",
+  "NETWORK": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMiA4LjVhMTYgMTYgMCAwIDEgMjAgME01LjUgMTIuNWExMSAxMSAwIDAgMSAxMyAwTTkgMTYuNWE2IDYgMCAwIDEgNiAwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIyMCIgcj0iMSIgZmlsbD0iIzRhYTNmZiIgc3Ryb2tlPSJub25lIi8+PC9zdmc+",
+  "SOCIAL": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjgiIHI9IjMuNSIvPjxwYXRoIGQ9Ik01IDIwYzAtMy45IDMuMS03IDctN3M3IDMuMSA3IDciLz48L3N2Zz4=",
+  "VEHICLES": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNCAxNmwxLjUtNUEyIDIgMCAwIDEgNy40IDkuNWg5LjJBMiAyIDAgMCAxIDE4LjUgMTFMMjAgMTYiLz48cmVjdCB4PSIzIiB5PSIxNiIgd2lkdGg9IjE4IiBoZWlnaHQ9IjQiIHJ4PSIxLjUiLz48Y2lyY2xlIGN4PSI3LjUiIGN5PSIyMCIgcj0iMS40Ii8+PGNpcmNsZSBjeD0iMTYuNSIgY3k9IjIwIiByPSIxLjQiLz48L3N2Zz4=",
+  "_DEFAULT": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA3YTIgMiAwIDAgMSAyLTJoNGwyIDJoOGEyIDIgMCAwIDEgMiAydjhhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ6Ii8+PC9zdmc+",
+};
+
 const json = (o, s = 200) =>
   new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json", ...CORS } });
 const err = (msg, s = 400) => json({ error: msg }, s);
@@ -96,10 +115,35 @@ async function getLeaderboard(env) {
   return board;
 }
 
+async function getTimeline(env) {
+  const now = Date.now();
+  const phase = await phaseOf(env, now);
+  if (phase === "pre" || phase === "unset") return json({ phase, event: {}, solves: [] });
+  const { valBy } = await scoreMaps(env);
+  const solves = (await env.DB.prepare(
+    "SELECT u.name, s.challenge_id, s.ts_ms FROM solves s JOIN users u ON u.uuid=s.uuid WHERE s.scored=1 ORDER BY s.ts_ms"
+  ).all()).results;
+  return json({
+    phase,
+    event: { start: Number(await cfg(env, "event_start", 0)), end: Number(await cfg(env, "event_end", 0)) },
+    solves: solves.map((s) => ({ name: s.name, ts_ms: s.ts_ms, points: valBy[s.challenge_id] || 0 })),
+  });
+}
+
+async function iconOverrides(env) {
+  const raw = await cfg(env, "category_icons", null);
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+function iconFor(category, overrides) {
+  const key = String(category || "").toUpperCase();
+  return overrides[key] || DEFAULT_ICONS[key] || DEFAULT_ICONS._DEFAULT;
+}
+
 async function getChallenges(env, uuid) {
   const now = Date.now();
   const phase = await phaseOf(env, now);
-  if (phase === "pre" || phase === "unset") return json({ phase, challenges: [] });
+  if (phase === "pre" || phase === "unset") return json({ phase, challenges: [], icons: {} });
   const { chBy, valBy, nBy } = await scoreMaps(env);
   const mine = { solves: {}, attempts: {}, hints: {} };
   if (uuid) {
@@ -122,7 +166,10 @@ async function getChallenges(env, uuid) {
         holdoff_until: at ? at.last_ms + ch.holdoff_ms : 0,
       };
     });
-  return json({ phase, challenges: list });
+  const overrides = await iconOverrides(env);
+  const icons = {};
+  list.forEach((c) => { icons[c.category] = iconFor(c.category, overrides); });
+  return json({ phase, challenges: list, icons });
 }
 
 async function register(env, b) {
@@ -308,6 +355,7 @@ export default {
     try {
       if (req.method === "GET" && p === "/state") return await getState(env);
       if (req.method === "GET" && p === "/leaderboard") return json({ board: await getLeaderboard(env) });
+      if (req.method === "GET" && p === "/timeline") return await getTimeline(env);
       if (req.method === "GET" && p === "/challenges") return await getChallenges(env, url.searchParams.get("uuid"));
       if (req.method === "GET" && p === "/solutions") return await getSolutions(env);
       if (req.method === "POST" && p === "/register") return await register(env, body);
@@ -336,6 +384,21 @@ export default {
         if (req.method === "POST" && p === "/admin/reset") return await adminReset(env);
         if (req.method === "POST" && p === "/admin/event") return await adminEvent(env, body);
         if (req.method === "GET" && p === "/admin/export") return await adminExport(env);
+        if (req.method === "GET" && p === "/admin/category-icons") {
+          return json({ overrides: await iconOverrides(env), defaults: DEFAULT_ICONS });
+        }
+        if (req.method === "POST" && p === "/admin/category-icons") {
+          const patch = body.icons && typeof body.icons === "object" ? body.icons : {};
+          const cur = await iconOverrides(env);
+          for (const [cat, dataUri] of Object.entries(patch)) {
+            const key = String(cat || "").toUpperCase();
+            if (!key) continue;
+            if (!dataUri) delete cur[key]; // empty value clears the override, reverting to default
+            else cur[key] = String(dataUri).slice(0, 20000);
+          }
+          await setCfg(env, "category_icons", JSON.stringify(cur));
+          return json({ ok: true, overrides: cur });
+        }
         return err("not found", 404);
       }
       return err("not found", 404);

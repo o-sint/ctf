@@ -26,8 +26,9 @@
   .pill.pre{color:var(--acc2);border-color:var(--acc2)}
   .pill.post{color:var(--warn);border-color:var(--warn)}
 
-  .idbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0;
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .idbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;margin-bottom:6px}
+  .idbar input[type=text]{padding:5px 8px;font-size:12px;max-width:140px}
+  .idbar button{padding:4px 9px;font-size:12px}
   input,button{font-family:var(--mono);font-size:14px}
   input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
     padding:9px 11px;border-radius:8px;outline:none}
@@ -38,8 +39,10 @@
   button.primary{background:var(--acc);color:#04150e;border-color:var(--acc);font-weight:700}
   button.ghost{background:transparent}
   button.danger{color:var(--warn);border-color:#3a2330}
-  .who{font-family:var(--mono)}
+  .who{font-family:var(--mono);font-size:12px}
   .who b{color:var(--acc)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:16px 0}
+  .sbLegend{font-family:var(--mono);font-size:12px}
 
   h2{font-family:var(--mono);font-size:14px;color:var(--dim);text-transform:none;letter-spacing:1px;
     margin:26px 0 10px;font-weight:600}
@@ -92,14 +95,20 @@
   <header>
     <div class="brand">osint<span class="b">//</span>ctf</div>
     <div class="status" id="status">
+      <div class="idbar" id="idbar"><!-- filled by JS --></div>
       <div id="evname">—</div>
       <div class="clock" id="clock">--:--:--</div>
       <div><span class="pill" id="phase">…</span></div>
     </div>
   </header>
 
-  <div class="idbar" id="idbar">
-    <!-- filled by JS -->
+  <div class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Scoreboard</h2>
+      <span class="sub" id="sbMsg"></span>
+    </div>
+    <svg id="sbChart" width="100%" viewBox="0 0 900 340" style="display:block;overflow:visible;margin-top:6px"></svg>
+    <div class="sbLegend row" id="sbLegend" style="margin-top:6px"></div>
   </div>
 
   <h2>Leaderboard</h2>
@@ -112,7 +121,7 @@
   <h2>Challenges</h2>
   <div id="chArea"><div class="sub" id="chNote">loading…</div><div class="catgrid" id="cats"></div></div>
 
-  <div class="foot">no accounts · username stored in your browser · clearing site data resets your identity</div>
+  <div class="foot">no accounts · username stored in your browser · clearing site data resets your identity · shamelessly vibe coded</div>
 </div>
 
 <div class="modal" id="modal">
@@ -160,13 +169,13 @@ async function promptName(v){
   const name=(v||"").trim(); if(!name) return;
   try{
     const j=await api("/register",{method:"POST",body:JSON.stringify({uuid:UUID,name})});
-    NAME=j.name; localStorage.setItem(nameKey,NAME); renderIdbar(); loadBoard();
+    NAME=j.name; localStorage.setItem(nameKey,NAME); renderIdbar(); loadBoard(); loadScoreboard();
   }catch(e){ const m=$("#joinMsg"); if(m){m.textContent=e.message;m.className="sub bad";} else alert(e.message); }
 }
 async function removeMe(){
   if(!confirm("Remove your username and all your solves?")) return;
   try{ await api("/unregister",{method:"POST",body:JSON.stringify({uuid:UUID})}); }catch(e){}
-  NAME=""; localStorage.removeItem(nameKey); renderIdbar(); loadBoard(); loadChallenges();
+  NAME=""; localStorage.removeItem(nameKey); renderIdbar(); loadBoard(); loadChallenges(); loadScoreboard();
 }
 
 async function loadState(){
@@ -193,10 +202,85 @@ async function loadBoard(){
   });
   if(!j.board.length) tb.innerHTML=`<tr><td colspan="3" class="sub" style="padding:14px">No players yet. Be the first — pick a username above.</td></tr>`;
 }
+const SB_COLORS=["#37e0a0","#4aa3ff","#ffcf5c","#ff6b6b","#c792ea","#7fd1ff","#f78c6c","#82aaff","#c3e88d","#ff9cac"];
+function fmtTick(ms){ const d=new Date(ms); const p=n=>String(n).padStart(2,"0");
+  return `${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function niceMax(n){ if(n<=0)return 10; const mag=Math.pow(10,Math.floor(Math.log10(n)));
+  const norm=n/mag; const step=norm<=1?1:norm<=2?2:norm<=5?5:10; return step*mag; }
+
+async function loadScoreboard(){
+  try{
+    const [board,tl]=await Promise.all([api("/leaderboard"),api("/timeline")]);
+    const solves=(tl.solves||[]).slice().sort((a,b)=>a.ts_ms-b.ts_ms);
+    const byName={};
+    solves.forEach(s=>{(byName[s.name]=byName[s.name]||[]).push(s);});
+    const top=board.board.filter(b=>b.solves>0).slice(0,10);
+    $("#sbMsg").textContent = board.board.length ? board.board.length+" player"+(board.board.length===1?"":"s") : "";
+    drawWorm(top, byName, tl.event||{}, solves);
+  }catch(e){ /* leave prior chart in place on transient error */ }
+}
+function drawWorm(top, byName, event, allSolves){
+  const svg=$("#sbChart");
+  const W=900,H=340,padL=46,padR=100,padT=14,padB=34;
+  svg.innerHTML="";
+  $("#sbLegend").innerHTML="";
+  if(!top.length || !allSolves.length){
+    svg.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#8090b3" font-family="monospace" font-size="13" text-anchor="middle">no scored solves yet</text>`;
+    return;
+  }
+  const tsAll=allSolves.map(s=>s.ts_ms);
+  const xMin=event.start||Math.min(...tsAll);
+  const latest=Math.max(Date.now(),...tsAll);
+  const xEnd=Math.max(xMin+1, event.end&&event.end>xMin?Math.min(event.end,latest):latest);
+  const maxScore=niceMax(Math.max(...top.map(b=>b.score),1));
+  const x=(ms)=>padL+((ms-xMin)/(xEnd-xMin||1))*(W-padL-padR);
+  const y=(v)=>H-padB-(v/maxScore)*(H-padT-padB);
+
+  let svgEls="";
+  for(let i=0;i<=4;i++){
+    const v=Math.round(maxScore*i/4);
+    const yy=y(v);
+    svgEls+=`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="#243049" stroke-width="1"/>`;
+    svgEls+=`<text x="${padL-8}" y="${yy+4}" fill="#8090b3" font-family="monospace" font-size="11" text-anchor="end">${v}</text>`;
+  }
+  [xMin,(xMin+xEnd)/2,xEnd].forEach(t=>{
+    svgEls+=`<text x="${x(t)}" y="${H-padB+18}" fill="#8090b3" font-family="monospace" font-size="11" text-anchor="middle">${fmtTick(t)}</text>`;
+  });
+
+  const labels=[];
+  top.forEach((b,i)=>{
+    const color=SB_COLORS[i%SB_COLORS.length];
+    const pts=byName[b.name]||[];
+    let cum=0; const path=[`M ${x(xMin)} ${y(0)}`];
+    pts.forEach(s=>{
+      path.push(`L ${x(s.ts_ms)} ${y(cum)}`);
+      cum+=s.points;
+      path.push(`L ${x(s.ts_ms)} ${y(cum)}`);
+    });
+    path.push(`L ${x(xEnd)} ${y(cum)}`);
+    svgEls+=`<path d="${path.join(" ")}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+    pts.forEach(s=>{
+      let c2=0; for(const p of pts){ c2+=p.points; if(p===s)break; }
+      svgEls+=`<circle cx="${x(s.ts_ms)}" cy="${y(c2)}" r="2.5" fill="${color}"/>`;
+    });
+    const label=b.name.length>13?b.name.slice(0,12)+"…":b.name;
+    labels.push({y:y(cum),color,label});
+  });
+  labels.sort((a,b)=>a.y-b.y);
+  for(let i=1;i<labels.length;i++){
+    if(labels[i].y-labels[i-1].y<13) labels[i].y=labels[i-1].y+13;
+  }
+  labels.forEach(l=>{ svgEls+=`<text x="${x(xEnd)+4}" y="${l.y+3}" fill="${l.color}" font-family="monospace" font-size="11">${esc(l.label)}</text>`; });
+  svg.innerHTML=svgEls;
+
+  $("#sbLegend").innerHTML=top.map((b,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px">
+    <span style="width:10px;height:10px;border-radius:2px;background:${SB_COLORS[i%SB_COLORS.length]};display:inline-block"></span>${esc(b.name)} <span class="sub">(${b.score})</span></span>`).join("");
+}
+
 async function loadChallenges(){
   const note=$("#chNote"), cats=$("#cats");
   const j=await api("/challenges?uuid="+encodeURIComponent(UUID));
-  CH=j.challenges;
+  CH=j.challenges; const icons=j.icons||{};
   if(j.phase==="pre"||j.phase==="unset"){ note.textContent = j.phase==="pre"?"Challenges unlock when the event starts.":"No event scheduled yet."; cats.innerHTML=""; return; }
   note.textContent="";
   const groups={};
@@ -204,7 +288,8 @@ async function loadChallenges(){
   cats.innerHTML="";
   Object.keys(groups).sort().forEach(cat=>{
     const div=document.createElement("div"); div.className="cat";
-    div.innerHTML=`<h3>${esc(cat)}</h3><div class="tiles"></div>`;
+    const icon=icons[cat];
+    div.innerHTML=`<h3>${icon?`<img src="${icon}" width="16" height="16" style="vertical-align:-3px;margin-right:6px"/>`:""}${esc(cat)}</h3><div class="tiles"></div>`;
     const tiles=$(".tiles",div);
     groups[cat].forEach(c=>{
       const t=document.createElement("div"); t.className="tile"+(c.solved?" solved":"");
@@ -259,7 +344,7 @@ async function doSubmit(id){
     const j=await api("/submit",{method:"POST",body:JSON.stringify({uuid:UUID,challenge_id:id,answer})});
     if(j.correct){
       m.className="msg ok"; m.textContent = j.scored?`Correct! +${j.points}`:"Correct (practice — event over, 0 pts)";
-      await loadChallenges(); await loadBoard();
+      await loadChallenges(); await loadBoard(); await loadScoreboard();
       const c=CH.find(x=>x.id===id); if(c){c.solved=true;}
       setTimeout(()=>{closeModal();},900);
     }else{
@@ -275,7 +360,7 @@ async function doHint(id){
   try{
     const j=await api("/hint",{method:"POST",body:JSON.stringify({uuid:UUID,challenge_id:id})});
     const c=CH.find(x=>x.id===id); if(c){c.hint=j.hint;}
-    openChallenge(id); await loadBoard();
+    openChallenge(id); await loadBoard(); await loadScoreboard();
   }catch(e){ alert(e.message); }
 }
 function closeModal(){ $("#modal").classList.remove("open"); }
@@ -293,11 +378,11 @@ $("#revealBtn").onclick=async()=>{
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function linkify(s){ return esc(s).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>'); }
 
-async function refresh(){ try{ await loadState(); await loadBoard(); await loadChallenges(); }catch(e){ console.error(e); } }
+async function refresh(){ try{ await loadState(); await loadBoard(); await loadChallenges(); await loadScoreboard(); }catch(e){ console.error(e); } }
 renderIdbar();
 refresh();
 setInterval(loadState,1000);
-setInterval(()=>{ loadBoard(); loadChallenges(); },15000);
+setInterval(()=>{ loadBoard(); loadChallenges(); loadScoreboard(); },15000);
 </script>
 </body>
 </html>
