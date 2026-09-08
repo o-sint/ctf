@@ -1,0 +1,19 @@
+name = "osint-ctf"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Route the API on the SAME hostname as the GitHub Pages site so there is no CORS.
+# The frontend fetches /api/* ; everything else falls through to GitHub Pages.
+# Requires the subdomain to be a proxied (orange-cloud) CNAME -> <user>.github.io.
+routes = [
+  { pattern = "ctf.example.com/api/*", zone_name = "example.com" }
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "osint_ctf"
+database_id = "REPLACE_WITH_DATABASE_ID"   # from: wrangler d1 create osint_ctf
+
+# Secret (do NOT put the value here) — set with:
+#   wrangler secret put BOOTSTRAP_KEY   # long random string; recovery key to reset the admin token
+# (No ANSWER_PEPPER needed — answers are stored as editable plaintext in D1.)

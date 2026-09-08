@@ -1,0 +1,163 @@
+[
+  {
+    "id": "p1-01", "category": "SOCIAL", "title": "Wahlberg's phone", "sort": 1,
+    "prompt": "What phone make does Mark Wahlberg use?",
+    "initial": 100, "minimum": 50, "decay": 20,
+    "hint": "", "hint_cost": 0,
+    "answers": ["iPhone", "Apple iPhone"],
+    "solution": "iPhone — device metadata via socialbearing.com/search/user/markwahlberg"
+  },
+  {
+    "id": "p1-02", "category": "GOV", "title": "Voter records", "sort": 2,
+    "prompt": "What is Dwayne Johnson's address based on the official FL voting records? (house number only)",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "Florida lets you check voter status by name + DOB.", "hint_cost": 30,
+    "answers": ["16715"],
+    "solution": "16715 — registration.elections.myflorida.com/en/CheckVoterStatus"
+  },
+  {
+    "id": "p1-03", "category": "IMAGE", "title": "Where was this taken", "sort": 3,
+    "prompt": "What country was this picture taken in?\nhttps://prnt.sc/26qe1ce",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "", "hint_cost": 0,
+    "answers": ["Germany"],
+    "solution": "Germany — source image at flickr.com/photos/piair/14484419720"
+  },
+  {
+    "id": "p1-04", "category": "VEHICLES", "title": "Last IL plate", "sort": 4,
+    "prompt": "What was the last registered plate number of this vehicle in IL?\nhttps://www.cars.com/vehicledetail/89239aa1-9bf6-4b84-a8ab-a446cf8bb20e/",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "Pull the VIN from the listing, then check IL SOS registration status.", "hint_cost": 30,
+    "answers": ["53707EL"],
+    "solution": "53707EL — apps.ilsos.gov/regstatus/ using the VIN from the listing"
+  },
+  {
+    "id": "p1-05", "category": "NETWORK", "title": "Denver MFA", "sort": 5,
+    "prompt": "Does the City and County of Denver use multifactor authentication? If so, what product?",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "Look at the domain's TXT records.", "hint_cost": 30,
+    "answers": ["DUO", "Cisco Duo", "Duo Security"],
+    "solution": "Duo — visible in a TXT record via toolbox.googleapps.com/apps/dig/#TXT/"
+  },
+  {
+    "id": "p1-06", "category": "GEO", "title": "Cafe move", "sort": 6,
+    "prompt": "What address did the cafe \"Ain't She Sweet Cafe\" move from in 2010? (4-digit street number only)",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "Wayback Machine has their old contact page.", "hint_cost": 30,
+    "answers": ["4532"],
+    "solution": "4532 — web.archive.org snapshot of aintshesweetcafe.com/contactus.html (Nov 2010)"
+  },
+  {
+    "id": "p1-07", "category": "CALLER ID", "title": "Whose number", "sort": 7,
+    "prompt": "Who owns the phone number (630) 867-5309?",
+    "initial": 100, "minimum": 50, "decay": 20,
+    "hint": "", "hint_cost": 0,
+    "answers": ["John Doe"],
+    "solution": "John Doe — thatsthem.com/phone/630-867-5309"
+  },
+  {
+    "id": "p1-08", "category": "CRACKING", "title": "Old password", "sort": 8,
+    "prompt": "Find an old password of \"jane.doe@gmail.com\" that starts with \"0609\".",
+    "initial": 250, "minimum": 125, "decay": 15,
+    "hint": "Get the hash from a breach index, then hashcat mask -a3 '0609?d?d?d?d?d?d' -m100.", "hint_cost": 60,
+    "answers": ["0609660023"],
+    "solution": "0609660023 — hash from breachdirectory.org, cracked with hashcat -m100 -a3 fa81e0bdb11595386424fcb998a8efac04bd6901 '0609?d?d?d?d?d?d'"
+  },
+  {
+    "id": "p1-09", "category": "METADATA", "title": "Which camera", "sort": 9,
+    "prompt": "Which camera (make and model) took this image? Use the 3rd photo from the top (long blue bicycle):\nhttps://www.jclindbikes.com/blogs/jc-lind-blog/amsterdam-diaries-part-5-onderwater-visit/",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "Right-click the image, open it directly, and read the EXIF.", "hint_cost": 30,
+    "answers": ["Apple iPhone 5s", "iPhone 5s"],
+    "solution": "Apple iPhone 5s — EXIF via flickriver.com/photos/philocycler/29376503084/ (bonus: Amsterdam)"
+  },
+  {
+    "id": "p1-10", "category": "MAPS", "title": "Yard sign", "sort": 10,
+    "prompt": "What 4-letter word is on the front-yard sign at 1099 Fowler Ave, Evanston, IL 60202?",
+    "initial": 100, "minimum": 50, "decay": 20,
+    "hint": "Apple Maps Look Around / Street View.", "hint_cost": 20,
+    "answers": ["SAFE"],
+    "solution": "SAFE — Apple Maps street-level imagery"
+  },
+  {
+    "id": "p1-11", "category": "GEO", "title": "Northwestern APs", "sort": 11,
+    "prompt": "What brand of wireless access points does Northwestern University use (as of 2021)?",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "wigle.net around the Evanston campus.", "hint_cost": 30,
+    "answers": ["Aruba"],
+    "solution": "Aruba — wigle.net map search over the campus (SSID/vendor data)"
+  },
+  {
+    "id": "p1-13", "category": "APIs", "title": "Latest contributor", "sort": 13,
+    "prompt": "What is the personal email address of the latest contributor to the gophish code?\n(Note: answer may drift over time as the repo gets new commits.)",
+    "initial": 200, "minimum": 100, "decay": 15,
+    "hint": "The GitHub commits API exposes author emails: api.github.com/repos/gophish/gophish/commits", "hint_cost": 40,
+    "answers": ["glenn.wilkinson@gmail.com"],
+    "solution": "glenn.wilkinson@gmail.com — api.github.com/repos/gophish/gophish/commits (re-verify before each class)"
+  },
+
+  {
+    "id": "p3-01", "category": "DOMAIN", "title": "Before DC", "sort": 21,
+    "prompt": "Which company owned the domain batman.com before DC?",
+    "initial": 100, "minimum": 50, "decay": 20,
+    "hint": "Historical WHOIS.", "hint_cost": 20,
+    "answers": ["Warner Bros", "Warner Bros.", "Warner Brothers", "WB"],
+    "solution": "Warner Bros. — whoxy.com/batman.com WHOIS history"
+  },
+  {
+    "id": "p3-02", "category": "GEO", "title": "What does it say", "sort": 22,
+    "prompt": "What does the ground/mural say here: 51.48449044020304, 0.08799148642372842",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "Google Maps globe/satellite view zoomed all the way in.", "hint_cost": 30,
+    "answers": ["What are you looking at", "What you looking at", "What are you ... looking at"],
+    "solution": "\"What are you ... looking at\" — visible in Google Maps globe view at those coords"
+  },
+  {
+    "id": "p3-03", "category": "IMAGE", "title": "Name the car", "sort": 23,
+    "prompt": "What car make/model is this?\nhttps://imgur.com/a/1ZSrHk8",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "Run it through carnet.ai.", "hint_cost": 30,
+    "answers": ["Subaru Impreza", "Subaru Impretza", "Impreza"],
+    "solution": "Subaru Impreza — identified via carnet.ai"
+  },
+  {
+    "id": "p3-04", "category": "MAPS", "title": "Reflection", "sort": 24,
+    "prompt": "The car from the previous challenge was parked at 291 Clermont Ave, Brooklyn, NY 11205. What words can be seen in the reflection of the driver's-side glass?",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "The words identify the imagery provider.", "hint_cost": 30,
+    "answers": ["Apple Maps", "Apple"],
+    "solution": "\"Apple Maps\" — reflected watermark in the street-level capture"
+  },
+  {
+    "id": "p3-05", "category": "GOV", "title": "Owner in 2015", "sort": 25,
+    "prompt": "Who owned the house at 291 Clermont Ave, Brooklyn, NY 11205 as of 2015?",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "NYC property records (ACRIS) or an aggregator.", "hint_cost": 30,
+    "answers": ["Rebecca L. Asbury", "Rebecca L Asbury", "Rebecca Asbury"],
+    "solution": "Rebecca L. Asbury — property records for the address"
+  },
+  {
+    "id": "p3-06", "category": "DEEP WEB", "title": "Simply Cyber email", "sort": 26,
+    "prompt": "What is the Gmail address of Gerald Auger, PhD from Simply Cyber?",
+    "initial": 150, "minimum": 75, "decay": 20,
+    "hint": "YouTube channel > About > view email address; or his beacons.ai page.", "hint_cost": 30,
+    "answers": ["gerald.simplycyber@gmail.com"],
+    "solution": "gerald.simplycyber@gmail.com — youtube.com/@SimplyCyber (About > view email) or beacons.ai/geraldauger_simplycyber"
+  },
+  {
+    "id": "p3-07", "category": "GOV", "title": "Registered to vote", "sort": 27,
+    "prompt": "Where is this person registered to vote?\nhttps://images.wsj.net/im-904704/?width=1000&size=0.8",
+    "initial": 200, "minimum": 100, "decay": 15,
+    "hint": "Identify the person first, then check the FL voter roll.", "hint_cost": 40,
+    "answers": ["161 River Cir, Santa Rosa Beach, FL 32459", "161 River Circle Santa Rosa Beach FL 32459", "161 River Cir Santa Rosa Beach FL 32459", "161 River Cir"],
+    "solution": "161 River Cir, Santa Rosa Beach, FL 32459"
+  },
+  {
+    "id": "p3-08", "category": "GOV", "title": "House under what name", "sort": 28,
+    "prompt": "What name is that person's house held under? (same person as the previous challenge)",
+    "initial": 200, "minimum": 100, "decay": 15,
+    "hint": "Walton County, FL tax parcel records.", "hint_cost": 40,
+    "answers": ["Ritchson Catherine Revocable Trust", "RITCHSON CATHERINE REVOCABLE TRUST"],
+    "solution": "RITCHSON CATHERINE REVOCABLE TRUST — walton.county-taxes.com parcel record"
+  }
+]

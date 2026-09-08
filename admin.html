@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OSINT CTF — admin</title>
+<style>
+  :root{--bg:#0b0f1a;--panel:#131a2b;--panel2:#0f1524;--line:#243049;--ink:#e6ecff;--dim:#8090b3;
+    --acc:#37e0a0;--acc2:#4aa3ff;--warn:#ff6b6b;--gold:#ffcf5c;
+    --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;--sans:'Inter',system-ui,sans-serif;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+  .wrap{max-width:960px;margin:0 auto;padding:20px}
+  h1{font-family:var(--mono);font-size:20px}.b{color:var(--acc)}
+  h2{font-family:var(--mono);font-size:14px;color:var(--acc2);margin:22px 0 8px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  label{display:block;font-family:var(--mono);font-size:12px;color:var(--dim);margin:8px 0 4px}
+  input,textarea,button{font-family:var(--mono);font-size:14px}
+  input,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:9px 11px;border-radius:8px;outline:none}
+  input:focus,textarea:focus{border-color:var(--acc2)}
+  textarea{min-height:150px;white-space:pre;overflow:auto}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:9px 13px;border-radius:8px;width:auto;margin-top:10px}
+  button:hover{border-color:var(--acc2)}
+  button.primary{background:var(--acc);color:#04150e;border-color:var(--acc);font-weight:700}
+  button.danger{color:var(--warn);border-color:#3a2330}
+  .msg{font-family:var(--mono);font-size:13px;margin-top:8px;min-height:16px}
+  .ok{color:var(--acc)}.bad{color:var(--warn)}.dim{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  th,td{padding:7px 9px;text-align:left;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-family:var(--mono);font-size:11px}
+  .pts{text-align:right;font-family:var(--mono);color:var(--gold)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px}
+  a{color:var(--acc2)}
+  #gate{max-width:420px;margin:60px auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>osint<span class="b">//</span>ctf · admin</h1>
+
+  <div id="gate" class="panel">
+    <label>Admin token</label>
+    <input type="password" id="tok" placeholder="bearer token" />
+    <button class="primary" id="gateBtn">Unlock</button>
+    <div class="msg" id="gateMsg"></div>
+    <div class="dim" style="margin-top:12px;font-size:12px">First run? Set the token below with your bootstrap key.</div>
+    <label>Bootstrap key (recovery only)</label>
+    <input type="password" id="boot" placeholder="BOOTSTRAP_KEY (from wrangler secret)" />
+    <label>New token</label>
+    <input type="password" id="bootTok" placeholder="new admin token (>= 12 chars)" />
+    <button id="bootBtn">Set token via bootstrap</button>
+    <div class="msg" id="bootMsg"></div>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="panel">
+      <h2>Event</h2>
+      <label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" />
+      <div class="grid">
+        <div><label>Start</label><input type="datetime-local" id="evStart" /></div>
+        <div><label>End</label><input type="datetime-local" id="evEnd" /></div>
+      </div>
+      <div class="row"><button class="primary" id="evSave">Save event</button>
+        <span class="dim" id="evNow"></span></div>
+      <div class="msg" id="evMsg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Bulk load challenges (JSON)</h2>
+      <div class="dim" style="font-size:12px">Array of challenge objects with <code>answers</code> as an array of accepted strings. Stored as plaintext and editable here (admin-only; never sent to players). Re-uploading an <code>id</code> overwrites it.</div>
+      <textarea id="bulk" placeholder='[ { "id":"p1-01", "category":"SOCIAL", "title":"...", "prompt":"...", "initial":100, "minimum":50, "decay":20, "hint":"", "hint_cost":0, "answers":["..."], "solution":"..." } ]'></textarea>
+      <div class="row">
+        <input type="file" id="bulkFile" accept=".json" style="width:auto" />
+        <button class="primary" id="bulkBtn">Upload JSON</button>
+      </div>
+      <div class="msg" id="bulkMsg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Add / edit one challenge</h2>
+      <div class="grid3">
+        <div><label>id</label><input id="c_id" placeholder="p1-01"/></div>
+        <div><label>category</label><input id="c_cat" placeholder="GEO"/></div>
+        <div><label>title</label><input id="c_title" placeholder="Cafe move"/></div>
+      </div>
+      <label>prompt (question, include any target URL)</label><textarea id="c_prompt" style="min-height:70px"></textarea>
+      <div class="grid3">
+        <div><label>initial</label><input id="c_initial" type="number" value="100"/></div>
+        <div><label>minimum</label><input id="c_min" type="number" value="50"/></div>
+        <div><label>decay</label><input id="c_decay" type="number" value="20"/></div>
+      </div>
+      <div class="grid3">
+        <div><label>attempts_max</label><input id="c_att" type="number" value="10"/></div>
+        <div><label>holdoff_ms</label><input id="c_hold" type="number" value="30000"/></div>
+        <div><label>hint_cost</label><input id="c_hcost" type="number" value="0"/></div>
+      </div>
+      <label>hint (optional)</label><input id="c_hint"/>
+      <label>accepted answers (one per line)</label><textarea id="c_answers" style="min-height:70px"></textarea>
+      <label>solution (revealed after event end)</label><textarea id="c_sol" style="min-height:60px"></textarea>
+      <button class="primary" id="c_save">Save challenge</button>
+      <div class="msg" id="c_msg"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Challenges</h2>
+      <button id="chReload">Reload</button>
+      <table id="chTbl"><thead><tr><th>id</th><th>cat</th><th>title</th><th class="pts">init/min</th><th>ans</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Players</h2>
+      <button id="uReload">Reload</button>
+      <table id="uTbl"><thead><tr><th>name</th><th></th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="panel">
+      <h2>Export</h2>
+      <div class="row">
+        <button class="primary" id="expCsv">Leaderboard CSV</button>
+        <button id="expJson">Full JSON</button>
+        <span class="dim" id="expMsg"></span>
+      </div>
+      <div class="dim" style="font-size:12px;margin-top:6px">CSV = ranked board (rank, name, score, solves, last solve). JSON adds every solve with timestamps.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Danger zone</h2>
+      <div class="row">
+        <button class="danger" id="reset">Reset scoreboard</button>
+        <span class="dim">wipes players, solves, attempts, hints — keeps challenges & event</span>
+      </div>
+      <label style="margin-top:14px">Rotate admin token (new, >= 12 chars)</label>
+      <div class="row"><input type="password" id="newTok" style="max-width:340px" placeholder="new token"/>
+        <button class="danger" id="rot">Rotate token</button></div>
+      <div class="msg" id="dzMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIG ============ */
+const API = "/api"; // match index.html
+/* ================================ */
+const $=(s)=>document.querySelector(s);
+let TOKEN=sessionStorage.getItem("ctf_admin")||"";
+
+async function api(path,opts={},auth=true){
+  const h={"Content-Type":"application/json",...(opts.headers||{})};
+  if(auth&&TOKEN) h["Authorization"]="Bearer "+TOKEN;
+  const r=await fetch(API+path,{...opts,headers:h});
+  const j=await r.json().catch(()=>({error:"bad response"}));
+  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+  return j;
+}
+const toLocal=(ms)=>{ if(!ms)return""; const d=new Date(ms); const p=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+const fromLocal=(s)=> s?new Date(s).getTime():0;
+
+async function unlock(){
+  try{ await api("/admin/users"); sessionStorage.setItem("ctf_admin",TOKEN); $("#gate").style.display="none"; $("#app").style.display="block"; loadAll(); }
+  catch(e){ $("#gateMsg").className="msg bad"; $("#gateMsg").textContent="Rejected: "+e.message; }
+}
+$("#gateBtn").onclick=()=>{ TOKEN=$("#tok").value.trim(); unlock(); };
+$("#tok").onkeydown=e=>{if(e.key==="Enter"){TOKEN=$("#tok").value.trim();unlock();}};
+$("#bootBtn").onclick=async()=>{
+  const boot=$("#boot").value.trim(), nt=$("#bootTok").value.trim();
+  try{
+    await fetch(API+"/admin/rotate-token",{method:"POST",headers:{"Content-Type":"application/json","X-Bootstrap-Key":boot},body:JSON.stringify({new_token:nt})})
+      .then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.error);});
+    $("#bootMsg").className="msg ok"; $("#bootMsg").textContent="Token set. Unlock above with it.";
+    TOKEN=nt; $("#tok").value=nt;
+  }catch(e){ $("#bootMsg").className="msg bad"; $("#bootMsg").textContent=e.message; }
+};
+
+async function loadAll(){ loadState(); loadChallenges(); loadUsers(); }
+async function loadState(){
+  const s=await api("/state",{},false);
+  $("#evName").value=s.name||""; $("#evStart").value=toLocal(s.start); $("#evEnd").value=toLocal(s.end);
+  $("#evNow").textContent="phase: "+s.phase;
+}
+$("#evSave").onclick=async()=>{
+  try{ await api("/admin/event",{method:"POST",body:JSON.stringify({name:$("#evName").value,start:fromLocal($("#evStart").value),end:fromLocal($("#evEnd").value)})});
+    $("#evMsg").className="msg ok"; $("#evMsg").textContent="Saved."; loadState(); }
+  catch(e){ $("#evMsg").className="msg bad"; $("#evMsg").textContent=e.message; }
+};
+
+$("#bulkFile").onchange=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>$("#bulk").value=r.result;r.readAsText(f);};
+$("#bulkBtn").onclick=async()=>{
+  let data; try{data=JSON.parse($("#bulk").value);}catch(e){$("#bulkMsg").className="msg bad";$("#bulkMsg").textContent="Invalid JSON: "+e.message;return;}
+  try{ const j=await api("/admin/challenges",{method:"POST",body:JSON.stringify(data)});
+    $("#bulkMsg").className="msg ok"; $("#bulkMsg").textContent=`Upserted ${j.upserted}. Skipped: ${j.skipped.join(", ")||"none"}.`; loadChallenges(); }
+  catch(e){ $("#bulkMsg").className="msg bad"; $("#bulkMsg").textContent=e.message; }
+};
+
+$("#c_save").onclick=async()=>{
+  const obj={ id:$("#c_id").value.trim(), category:$("#c_cat").value.trim(), title:$("#c_title").value.trim(),
+    prompt:$("#c_prompt").value, initial:+$("#c_initial").value, minimum:+$("#c_min").value, decay:+$("#c_decay").value,
+    attempts_max:+$("#c_att").value, holdoff_ms:+$("#c_hold").value, hint:$("#c_hint").value, hint_cost:+$("#c_hcost").value,
+    answers:$("#c_answers").value.split("\n").map(x=>x.trim()).filter(Boolean), solution:$("#c_sol").value };
+  try{ const j=await api("/admin/challenges",{method:"POST",body:JSON.stringify([obj])});
+    $("#c_msg").className="msg ok"; $("#c_msg").textContent = j.upserted?"Saved.":("Skipped: "+j.skipped.join(", ")); loadChallenges(); }
+  catch(e){ $("#c_msg").className="msg bad"; $("#c_msg").textContent=e.message; }
+};
+
+async function loadChallenges(){
+  const j=await api("/admin/challenges");
+  const tb=$("#chTbl tbody"); tb.innerHTML="";
+  j.challenges.forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td><code>${esc(c.id)}</code></td><td>${esc(c.category)}</td><td>${esc(c.title)}</td>
+      <td class="pts">${c.initial}/${c.minimum}</td><td>${(c.answers||[]).length}</td>
+      <td><button data-e="${esc(c.id)}">edit</button> <button class="danger" data-d="${esc(c.id)}">del</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{ if(!confirm("Delete "+b.dataset.d+"?"))return;
+    await api("/admin/challenge/"+encodeURIComponent(b.dataset.d),{method:"DELETE"}); loadChallenges(); });
+  tb.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>editChallenge(j.challenges.find(x=>x.id===b.dataset.e)));
+}
+function editChallenge(c){
+  $("#c_id").value=c.id;$("#c_cat").value=c.category;$("#c_title").value=c.title;$("#c_prompt").value=c.prompt||"";
+  $("#c_initial").value=c.initial;$("#c_min").value=c.minimum;$("#c_decay").value=c.decay;
+  $("#c_att").value=c.attempts_max;$("#c_hold").value=c.holdoff_ms;$("#c_hcost").value=c.hint_cost;
+  $("#c_hint").value=c.hint||"";$("#c_sol").value=c.solution||"";
+  $("#c_answers").value=(c.answers||[]).join("\n"); $("#c_answers").placeholder="one accepted answer per line";
+  $("#c_msg").className="msg dim"; $("#c_msg").textContent="Loaded "+c.id+". Edit and Save.";
+  window.scrollTo({top:$("#c_id").getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"});
+}
+$("#chReload").onclick=loadChallenges;
+
+async function loadUsers(){
+  const j=await api("/admin/users");
+  const tb=$("#uTbl tbody"); tb.innerHTML="";
+  j.users.forEach(u=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc(u.name)}</td><td class="row">
+      <button data-r="${esc(u.uuid)}" data-n="${esc(u.name)}">rename</button>
+      <button class="danger" data-x="${esc(u.uuid)}">remove</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
+    const nn=prompt("New name for "+b.dataset.n+":",b.dataset.n); if(!nn)return;
+    try{ await api("/admin/user/rename",{method:"POST",body:JSON.stringify({uuid:b.dataset.r,name:nn})}); loadUsers(); }catch(e){alert(e.message);} });
+  tb.querySelectorAll("[data-x]").forEach(b=>b.onclick=async()=>{ if(!confirm("Remove player?"))return;
+    await api("/admin/user/"+encodeURIComponent(b.dataset.x),{method:"DELETE"}); loadUsers(); });
+}
+$("#uReload").onclick=loadUsers;
+
+$("#reset").onclick=async()=>{ if(!confirm("Reset the scoreboard? This removes all players and solves."))return;
+  try{ await api("/admin/reset",{method:"POST"}); $("#dzMsg").className="msg ok"; $("#dzMsg").textContent="Scoreboard reset."; loadUsers(); }
+  catch(e){ $("#dzMsg").className="msg bad"; $("#dzMsg").textContent=e.message; } };
+$("#rot").onclick=async()=>{ const nt=$("#newTok").value.trim(); if(nt.length<12){$("#dzMsg").className="msg bad";$("#dzMsg").textContent="Need >= 12 chars.";return;}
+  try{ await api("/admin/rotate-token",{method:"POST",body:JSON.stringify({new_token:nt})});
+    TOKEN=nt; sessionStorage.setItem("ctf_admin",nt); $("#dzMsg").className="msg ok"; $("#dzMsg").textContent="Rotated. New token active."; $("#newTok").value=""; }
+  catch(e){ $("#dzMsg").className="msg bad"; $("#dzMsg").textContent=e.message; } };
+
+function download(name,text,type){
+  const url=URL.createObjectURL(new Blob([text],{type})); const a=document.createElement("a");
+  a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function csvCell(v){ v=String(v??""); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function slug(s){ return (s||"ctf").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"ctf"; }
+$("#expCsv").onclick=async()=>{
+  try{
+    const d=await api("/admin/export"); const b=d.leaderboard;
+    const head=["rank","name","score","solves","last_solve"];
+    const rows=[head.join(","),...b.map(r=>[r.rank,r.name,r.score,r.solves,r.last_solve].map(csvCell).join(","))];
+    download(slug(d.event.name)+"-leaderboard.csv",rows.join("\n"),"text/csv");
+    $("#expMsg").className="dim"; $("#expMsg").textContent=b.length+" players exported.";
+  }catch(e){ $("#expMsg").className="bad"; $("#expMsg").textContent=e.message; }
+};
+$("#expJson").onclick=async()=>{
+  try{
+    const d=await api("/admin/export");
+    download(slug(d.event.name)+"-export.json",JSON.stringify(d,null,2),"application/json");
+    $("#expMsg").className="dim"; $("#expMsg").textContent=d.solves.length+" solves exported.";
+  }catch(e){ $("#expMsg").className="bad"; $("#expMsg").textContent=e.message; }
+};
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+if(TOKEN){ unlock(); }
