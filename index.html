@@ -93,7 +93,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="brand">osint<span class="b">//</span>ctf</div>
+    <div class="brand" title="Open Source Intelligence - Capture The Flag">OSINT<span class="b">//</span>CTF</div>
     <div class="status" id="status">
       <div class="idbar" id="idbar"><!-- filled by JS --></div>
       <div id="evname">—</div>
@@ -152,7 +152,7 @@ const fmt=(ms)=>{ if(ms<0)ms=0; const s=Math.floor(ms/1000); const h=Math.floor(
 function renderIdbar(){
   const bar=$("#idbar");
   if(NAME){
-    bar.innerHTML=`<span class="who">playing as <b>${esc(NAME)}</b></span>
+    bar.innerHTML=`<span class="who">playing as: <b>${esc(NAME)}</b></span>
       <button id="editName" class="ghost">Change name</button>
       <button id="delName" class="danger">Remove me</button>`;
     $("#editName").onclick=()=>promptName(NAME);
