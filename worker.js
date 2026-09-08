@@ -273,6 +273,7 @@ async function adminRenameUser(env, b) {
 
 async function adminExport(env) {
   const board = await getLeaderboard(env);
+  const { valBy } = await scoreMaps(env);
   const solves = (await env.DB.prepare(
     "SELECT u.name, s.challenge_id, s.ts_ms, s.scored FROM solves s JOIN users u ON u.uuid=s.uuid ORDER BY s.ts_ms"
   ).all()).results;
@@ -288,8 +289,9 @@ async function adminExport(env) {
       last_solve: b.last ? new Date(b.last).toISOString() : "",
     })),
     solves: solves.map((s) => ({
-      name: s.name, challenge_id: s.challenge_id,
+      name: s.name, challenge_id: s.challenge_id, ts_ms: s.ts_ms,
       ts: new Date(s.ts_ms).toISOString(), scored: !!s.scored,
+      points: s.scored ? (valBy[s.challenge_id] || 0) : 0,
     })),
   });
 }

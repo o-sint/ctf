@@ -69,6 +69,14 @@
     </div>
 
     <div class="panel">
+      <h2>Scoreboard</h2>
+      <div class="row"><button id="sbReload">Reload</button><span class="dim" id="sbMsg"></span></div>
+      <div id="sbChartWrap" style="margin-top:10px"><svg id="sbChart" width="100%" viewBox="0 0 900 340" style="display:block;overflow:visible"></svg></div>
+      <div id="sbLegend" class="row" style="margin-top:6px;font-family:var(--mono);font-size:12px"></div>
+      <div style="overflow-x:auto;margin-top:10px"><table id="sbTbl"><thead><tr><th>#</th><th>name</th><th class="pts">score</th><th class="pts">solves</th><th>last solve</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="panel">
       <h2>Bulk load challenges (JSON)</h2>
       <div class="dim" style="font-size:12px">Array of challenge objects with <code>answers</code> as an array of accepted strings. Stored as plaintext and editable here (admin-only; never sent to players). Re-uploading an <code>id</code> overwrites it.</div>
       <textarea id="bulk" placeholder='[ { "id":"p1-01", "category":"SOCIAL", "title":"...", "prompt":"...", "initial":100, "minimum":50, "decay":20, "hint":"", "hint_cost":0, "answers":["..."], "solution":"..." } ]'></textarea>
@@ -81,6 +89,7 @@
 
     <div class="panel">
       <h2>Add / edit one challenge</h2>
+      <div class="row" style="margin-bottom:4px"><button id="c_new">+ New challenge</button></div>
       <div class="grid3">
         <div><label>id</label><input id="c_id" placeholder="p1-01"/></div>
         <div><label>category</label><input id="c_cat" placeholder="GEO"/></div>
@@ -106,8 +115,8 @@
 
     <div class="panel">
       <h2>Challenges</h2>
-      <button id="chReload">Reload</button>
-      <table id="chTbl"><thead><tr><th>id</th><th>cat</th><th>title</th><th class="pts">init/min</th><th>ans</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="row"><button id="chReload">Reload</button><span class="dim" id="chCount"></span></div>
+      <div style="overflow-x:auto"><table id="chTbl"><thead><tr><th>id</th><th>cat</th><th>title</th><th>prompt</th><th class="pts">init/min</th><th>ans</th><th></th></tr></thead><tbody></tbody></table></div>
     </div>
 
     <div class="panel">
@@ -175,7 +184,7 @@ $("#bootBtn").onclick=async()=>{
   }catch(e){ $("#bootMsg").className="msg bad"; $("#bootMsg").textContent=e.message; }
 };
 
-async function loadAll(){ loadState(); loadChallenges(); loadUsers(); }
+async function loadAll(){ loadState(); loadChallenges(); loadUsers(); loadScoreboard(); }
 async function loadState(){
   const s=await api("/state",{},false);
   $("#evName").value=s.name||""; $("#evStart").value=toLocal(s.start); $("#evEnd").value=toLocal(s.end);
@@ -195,6 +204,14 @@ $("#bulkBtn").onclick=async()=>{
   catch(e){ $("#bulkMsg").className="msg bad"; $("#bulkMsg").textContent=e.message; }
 };
 
+$("#c_new").onclick=()=>{
+  ["c_id","c_cat","c_title","c_prompt","c_hint","c_answers","c_sol"].forEach(id=>$("#"+id).value="");
+  $("#c_initial").value=100; $("#c_min").value=50; $("#c_decay").value=20;
+  $("#c_att").value=10; $("#c_hold").value=30000; $("#c_hcost").value=0;
+  $("#c_msg").className="msg dim"; $("#c_msg").textContent="New challenge. Fill in and Save.";
+  $("#c_id").focus();
+  window.scrollTo({top:$("#c_id").getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"});
+};
 $("#c_save").onclick=async()=>{
   const obj={ id:$("#c_id").value.trim(), category:$("#c_cat").value.trim(), title:$("#c_title").value.trim(),
     prompt:$("#c_prompt").value, initial:+$("#c_initial").value, minimum:+$("#c_min").value, decay:+$("#c_decay").value,
@@ -207,10 +224,14 @@ $("#c_save").onclick=async()=>{
 
 async function loadChallenges(){
   const j=await api("/admin/challenges");
+  $("#chCount").textContent=j.challenges.length+" challenge"+(j.challenges.length===1?"":"s");
   const tb=$("#chTbl tbody"); tb.innerHTML="";
   j.challenges.forEach(c=>{
     const tr=document.createElement("tr");
+    const promptFull=c.prompt||"";
+    const promptShort=promptFull.length>80?promptFull.slice(0,80)+"…":promptFull;
     tr.innerHTML=`<td><code>${esc(c.id)}</code></td><td>${esc(c.category)}</td><td>${esc(c.title)}</td>
+      <td title="${esc(promptFull)}" style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(promptShort)}</td>
       <td class="pts">${c.initial}/${c.minimum}</td><td>${(c.answers||[]).length}</td>
       <td><button data-e="${esc(c.id)}">edit</button> <button class="danger" data-d="${esc(c.id)}">del</button></td>`;
     tb.appendChild(tr);
@@ -229,6 +250,99 @@ function editChallenge(c){
   window.scrollTo({top:$("#c_id").getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"});
 }
 $("#chReload").onclick=loadChallenges;
+
+const SB_COLORS=["#37e0a0","#4aa3ff","#ffcf5c","#ff6b6b","#c792ea","#7fd1ff","#f78c6c","#82aaff","#c3e88d","#ff9cac"];
+function fmtTick(ms){ const d=new Date(ms); const p=n=>String(n).padStart(2,"0");
+  return `${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function niceMax(n){ if(n<=0)return 10; const mag=Math.pow(10,Math.floor(Math.log10(n)));
+  const norm=n/mag; const step=norm<=1?1:norm<=2?2:norm<=5?5:10; return step*mag; }
+
+async function loadScoreboard(){
+  $("#sbMsg").textContent="loading…";
+  try{
+    const d=await api("/admin/export");
+    const board=d.leaderboard; // rank, name, score, solves, last_solve
+    const solves=d.solves.filter(s=>s.scored).sort((a,b)=>a.ts_ms-b.ts_ms);
+
+    // condensed table (all players)
+    const tb=$("#sbTbl tbody"); tb.innerHTML="";
+    board.forEach(b=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${b.rank}</td><td>${esc(b.name)}</td><td class="pts">${b.score}</td><td class="pts">${b.solves}</td><td class="dim">${b.last_solve?new Date(b.last_solve).toLocaleString():""}</td>`;
+      tb.appendChild(tr);
+    });
+    $("#sbMsg").textContent=board.length+" player"+(board.length===1?"":"s");
+
+    // build cumulative per-player timelines (top 10 by final score, only players with >=1 scored solve)
+    const byName={};
+    solves.forEach(s=>{ (byName[s.name]=byName[s.name]||[]).push(s); });
+    const top=board.filter(b=>b.solves>0).slice(0,10);
+
+    drawWorm(top, byName, d.event, solves);
+  }catch(e){ $("#sbMsg").className="dim"; $("#sbMsg").textContent="Error: "+e.message; }
+}
+
+function drawWorm(top, byName, event, allSolves){
+  const svg=$("#sbChart");
+  const W=900,H=340,padL=46,padR=100,padT=14,padB=34;
+  svg.innerHTML="";
+  $("#sbLegend").innerHTML="";
+  if(!top.length || !allSolves.length){
+    svg.innerHTML=`<text x="${W/2}" y="${H/2}" fill="#8090b3" font-family="monospace" font-size="13" text-anchor="middle">no scored solves yet</text>`;
+    return;
+  }
+  const tsAll=allSolves.map(s=>s.ts_ms);
+  const xMin=event.start||Math.min(...tsAll);
+  const latest=Math.max(Date.now(),...tsAll);
+  const xEnd=Math.max(xMin+1, event.end&&event.end>xMin?Math.min(event.end,latest):latest);
+  const maxScore=niceMax(Math.max(...top.map(b=>b.score),1));
+  const x=(ms)=>padL+((ms-xMin)/(xEnd-xMin||1))*(W-padL-padR);
+  const y=(v)=>H-padB-(v/maxScore)*(H-padT-padB);
+
+  let svgEls="";
+  // gridlines + y labels
+  for(let i=0;i<=4;i++){
+    const v=Math.round(maxScore*i/4);
+    const yy=y(v);
+    svgEls+=`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="#243049" stroke-width="1"/>`;
+    svgEls+=`<text x="${padL-8}" y="${yy+4}" fill="#8090b3" font-family="monospace" font-size="11" text-anchor="end">${v}</text>`;
+  }
+  // x labels: start, mid, end
+  [xMin,(xMin+xEnd)/2,xEnd].forEach(t=>{
+    svgEls+=`<text x="${x(t)}" y="${H-padB+18}" fill="#8090b3" font-family="monospace" font-size="11" text-anchor="middle">${fmtTick(t)}</text>`;
+  });
+
+  const labels=[];
+  top.forEach((b,i)=>{
+    const color=SB_COLORS[i%SB_COLORS.length];
+    const pts=byName[b.name]||[];
+    let cum=0; const path=[`M ${x(xMin)} ${y(0)}`];
+    pts.forEach(s=>{
+      path.push(`L ${x(s.ts_ms)} ${y(cum)}`);
+      cum+=s.points;
+      path.push(`L ${x(s.ts_ms)} ${y(cum)}`);
+    });
+    path.push(`L ${x(xEnd)} ${y(cum)}`);
+    svgEls+=`<path d="${path.join(" ")}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+    pts.forEach(s=>{
+      let c2=0; for(const p of pts){ c2+=p.points; if(p===s)break; }
+      svgEls+=`<circle cx="${x(s.ts_ms)}" cy="${y(c2)}" r="2.5" fill="${color}"/>`;
+    });
+    const label=b.name.length>13?b.name.slice(0,12)+"…":b.name;
+    labels.push({y:y(cum),color,label});
+  });
+  // spread out end-of-line labels that would otherwise overlap (tied/close scores)
+  labels.sort((a,b)=>a.y-b.y);
+  for(let i=1;i<labels.length;i++){
+    if(labels[i].y-labels[i-1].y<13) labels[i].y=labels[i-1].y+13;
+  }
+  labels.forEach(l=>{ svgEls+=`<text x="${x(xEnd)+4}" y="${l.y+3}" fill="${l.color}" font-family="monospace" font-size="11">${esc(l.label)}</text>`; });
+  svg.innerHTML=svgEls;
+
+  $("#sbLegend").innerHTML=top.map((b,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px">
+    <span style="width:10px;height:10px;border-radius:2px;background:${SB_COLORS[i%SB_COLORS.length]};display:inline-block"></span>${esc(b.name)} <span class="dim">(${b.score})</span></span>`).join("");
+}
+$("#sbReload").onclick=loadScoreboard;
 
 async function loadUsers(){
   const j=await api("/admin/users");
