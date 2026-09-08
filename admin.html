@@ -245,7 +245,7 @@ async function loadChallenges(){
     tr.innerHTML=`<td><code>${esc(c.id)}</code></td><td>${esc(c.category)}</td><td>${esc(c.title)}</td>
       <td title="${esc(promptFull)}" style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(promptShort)}</td>
       <td class="pts">${c.initial}/${c.minimum}</td><td>${(c.answers||[]).length}</td>
-      <td><button data-e="${esc(c.id)}">edit</button> <button class="danger" data-d="${esc(c.id)}">del</button></td>`;
+      <td><button data-e="${esc(c.id)}">✎ edit</button> <button class="danger" data-d="${esc(c.id)}">🗑️ del</button></td>`;
     tb.appendChild(tr);
   });
   tb.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{ if(!confirm("Delete "+b.dataset.d+"?"))return;
