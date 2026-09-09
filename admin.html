@@ -21,6 +21,8 @@
   input:focus,textarea:focus{border-color:var(--acc2)}
   textarea{min-height:150px;white-space:pre;overflow:auto}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .evgrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+  @media(max-width:640px){.evgrid{grid-template-columns:1fr}}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px}
   button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:9px 13px;border-radius:8px;width:auto;margin-top:10px;box-sizing:border-box;height:37px}
@@ -29,8 +31,7 @@
   button.primary:hover{background:#2ecf94;border-color:#2ecf94}
   button.danger{color:var(--warn);border-color:#3a2330}
   button.danger:hover{background:rgba(255,107,107,.14);border-color:var(--warn)}
-  .row button,.row input[type=file]{margin-top:0}
-  .row input[type=file]{padding:7px 8px;height:37px;box-sizing:border-box}
+  .row input[type=file]{padding:7px 8px;height:37px;box-sizing:border-box;margin-top:10px}
   .msg{font-family:var(--mono);font-size:13px;margin-top:8px;min-height:16px}
   .ok{color:var(--acc)}.bad{color:var(--warn)}.dim{color:var(--dim)}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;table-layout:fixed}
@@ -68,10 +69,10 @@
   <div id="app" style="display:none">
     <div class="panel">
       <h2>Event</h2>
-      <label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" style="max-width:320px" />
-      <div class="row">
-        <div><label>Start</label><input type="datetime-local" id="evStart" style="width:auto" /></div>
-        <div><label>End</label><input type="datetime-local" id="evEnd" style="width:auto" /></div>
+      <div class="evgrid">
+        <div><label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" /></div>
+        <div><label>Start</label><input type="datetime-local" id="evStart" /></div>
+        <div><label>End</label><input type="datetime-local" id="evEnd" /></div>
       </div>
       <div class="row"><button class="primary" id="evSave">Save event</button>
         <span class="dim" id="evNow"></span></div>
@@ -84,6 +85,8 @@
       <textarea id="bulk" style="display:none"></textarea>
       <div class="row" style="margin-top:8px">
         <input type="file" id="bulkFile" accept=".json" style="width:auto" />
+      </div>
+      <div class="row" style="margin-top:8px">
         <button class="primary" id="bulkBtn">Upload JSON</button>
         <button id="bulkExport">Download current challenges (backup)</button>
       </div>
@@ -201,17 +204,15 @@ $("#bootBtn").onclick=async()=>{
 async function loadAll(){ loadState(); loadChallenges(); loadUsers(); setInterval(loadState,1000); }
 const fmt=(ms)=>{ if(ms<0)ms=0; const s=Math.floor(ms/1000); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
   return [h,m,ss].map(x=>String(x).padStart(2,"0")).join(":"); };
-const EV_FOCUS={};
-["evName","evStart","evEnd"].forEach(id=>{
-  EV_FOCUS[id]=false;
-  $("#"+id).addEventListener("focus",()=>EV_FOCUS[id]=true);
-  $("#"+id).addEventListener("blur",()=>EV_FOCUS[id]=false);
-});
+let EV_FORM_LOADED=false;
 async function loadState(){
   const s=await api("/state",{},false);
-  if(!EV_FOCUS.evName) $("#evName").value=s.name||"";
-  if(!EV_FOCUS.evStart) $("#evStart").value=toLocal(s.start);
-  if(!EV_FOCUS.evEnd) $("#evEnd").value=toLocal(s.end);
+  if(!EV_FORM_LOADED){
+    $("#evName").value=s.name||"";
+    $("#evStart").value=toLocal(s.start);
+    $("#evEnd").value=toLocal(s.end);
+    EV_FORM_LOADED=true;
+  }
   const drift=Date.now()-s.now;
   if(s.phase==="pre") $("#evNow").textContent="starts in "+fmt(s.start-(Date.now()-drift));
   else if(s.phase==="live") $("#evNow").textContent="ends in "+fmt(s.end-(Date.now()-drift));
