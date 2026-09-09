@@ -52,8 +52,9 @@
   th{color:var(--dim);font-family:var(--mono);font-weight:600;font-size:12px;background:var(--panel2)}
   tr+tr td{border-top:1px solid var(--line)}
   td.pts,th.pts{text-align:right;font-family:var(--mono)}
-  .rank{font-family:var(--mono);color:var(--dim);width:44px}
+  .rank{font-family:var(--mono);color:var(--dim);width:56px;white-space:nowrap}
   .rank.r1{color:var(--gold)} .rank.r2{color:#cbd5e1} .rank.r3{color:#d19a66}
+  .rank.r1::before{content:"🥇 "} .rank.r2::before{content:"🥈 "} .rank.r3::before{content:"🥉 "}
   .me td{background:rgba(55,224,160,.06)}
 
   .boardGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
