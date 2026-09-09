@@ -30,7 +30,7 @@
   .idbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;margin-bottom:6px}
   .idbar input[type=text]{padding:5px 8px;font-size:12px;max-width:140px}
   .idbar button{padding:4px 9px;font-size:12px}
-  input,button{font-family:var(--mono);font-size:14px}
+  input,button{font-family:var(--mono);font-size:18px}
   input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
     padding:9px 11px;border-radius:8px;outline:none}
   input[type=text]:focus{border-color:var(--acc2)}
@@ -56,9 +56,12 @@
   .rank.r1{color:var(--gold)} .rank.r2{color:#cbd5e1} .rank.r3{color:#d19a66}
   .me td{background:rgba(55,224,160,.06)}
 
+  .boardGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .boardGrid table{margin:0}
+  @media(max-width:640px){.boardGrid{grid-template-columns:1fr}}
   .catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
   .cat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
-  .cat h3{margin:0 0 2px;font-family:var(--mono);font-size:16px;color:var(--acc2);letter-spacing:.5px}
+  .cat h3{margin:0 0 10px;font-family:var(--mono);font-size:16px;color:var(--acc2);letter-spacing:.5px}
   .tiles{display:flex;flex-direction:column;gap:8px}
   .tile{display:flex;justify-content:space-between;align-items:center;gap:10px;
     background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;cursor:pointer}
@@ -77,7 +80,7 @@
   .card h3{margin:4px 0 2px;font-size:18px}
   .card .val{font-family:var(--mono);color:var(--gold);font-size:13px}
   .prompt{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border:1px solid var(--line);
-    border-radius:8px;padding:12px;margin:14px 0;font-size:14px}
+    border-radius:8px;padding:12px;margin:14px 0;font-size:20px}
   .prompt a{word-break:break-all}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .row input[type=text]{flex:1;min-width:180px}
@@ -112,7 +115,10 @@
   </div>
 
   <h2>Leaderboard</h2>
-  <table id="board"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
+  <div id="boardWrap" class="boardGrid">
+    <table id="board1"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
+    <table id="board2"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
+  </div>
 
   <h2>Challenges<span id="chTotal"></span></h2>
   <div id="chArea"><div class="sub" id="chNote">loading…</div><div class="catgrid" id="cats"></div></div>
@@ -187,15 +193,23 @@ async function loadState(){
 }
 async function loadBoard(){
   const j=await api("/leaderboard");
-  const tb=$("#board tbody"); tb.innerHTML="";
+  const tb1=$("#board1 tbody"), tb2=$("#board2 tbody");
+  tb1.innerHTML=""; tb2.innerHTML="";
+  if(!j.board.length){
+    tb1.innerHTML=`<tr><td colspan="3" class="sub" style="padding:14px">No players yet. Be the first — pick a username above.</td></tr>`;
+    $("#board2").style.display="none";
+    return;
+  }
+  $("#board2").style.display="";
+  const half=Math.ceil(j.board.length/2);
   j.board.forEach((row,i)=>{
     const tr=document.createElement("tr");
     if(row.name===NAME) tr.className="me";
     const rc = i<3?("r"+(i+1)):"";
     tr.innerHTML=`<td class="rank ${rc}">${i+1}</td><td>${esc(row.name)}</td><td class="pts">${row.score}</td>`;
-    tb.appendChild(tr);
+    (i<half?tb1:tb2).appendChild(tr);
   });
-  if(!j.board.length) tb.innerHTML=`<tr><td colspan="3" class="sub" style="padding:14px">No players yet. Be the first — pick a username above.</td></tr>`;
+  $("#board2").style.display=tb2.children.length?"":"none";
 }
 const SB_COLORS=["#37e0a0","#4aa3ff","#ffcf5c","#ff6b6b","#c792ea","#7fd1ff","#f78c6c","#82aaff","#c3e88d","#ff9cac"];
 function fmtTick(ms){ const d=new Date(ms); const p=n=>String(n).padStart(2,"0");
