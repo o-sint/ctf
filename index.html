@@ -18,7 +18,7 @@
   .wrap{max-width:70%;margin:0 auto;padding:20px}
   header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
     border-bottom:1px solid var(--line);padding-bottom:14px}
-  .brand{font-family:var(--mono);font-weight:700;font-size:20px;letter-spacing:.5px}
+  .brand{font-family:var(--mono);font-weight:700;font-size:26px;letter-spacing:.5px}
   .brand .b{color:var(--acc)}
   .status{font-family:var(--mono);font-size:13px;color:var(--dim);text-align:right}
   .status .clock{color:var(--gold);font-size:16px}
@@ -45,7 +45,7 @@
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:16px 0}
   .sbLegend{font-family:var(--mono);font-size:12px}
 
-  h2{font-family:var(--mono);font-size:14px;color:var(--dim);text-transform:none;letter-spacing:1px;
+  h2{font-family:var(--mono);font-size:24px;color:var(--dim);text-transform:none;letter-spacing:1px;
     margin:26px 0 10px;font-weight:600}
   table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   th,td{padding:10px 12px;text-align:left;font-size:14px}
@@ -58,7 +58,7 @@
 
   .catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
   .cat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
-  .cat h3{margin:0 0 10px;font-family:var(--mono);font-size:13px;color:var(--acc2);letter-spacing:.5px}
+  .cat h3{margin:0 0 2px;font-family:var(--mono);font-size:16px;color:var(--acc2);letter-spacing:.5px}
   .tiles{display:flex;flex-direction:column;gap:8px}
   .tile{display:flex;justify-content:space-between;align-items:center;gap:10px;
     background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;cursor:pointer}
@@ -73,8 +73,8 @@
   .modal{position:fixed;inset:0;background:rgba(3,6,14,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
   .modal.open{display:flex}
   .card{width:min(620px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
-  .card .cat-lbl{font-family:var(--mono);font-size:12px;color:var(--acc2)}
-  .card h3{margin:4px 0 2px;font-size:20px}
+  .card .cat-lbl{font-family:var(--mono);font-size:22px;color:var(--acc2)}
+  .card h3{margin:4px 0 2px;font-size:18px}
   .card .val{font-family:var(--mono);color:var(--gold);font-size:13px}
   .prompt{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border:1px solid var(--line);
     border-radius:8px;padding:12px;margin:14px 0;font-size:14px}
@@ -229,6 +229,7 @@ function drawWorm(top, byName, event, allSolves){
   const xEnd=Math.max(xMin+1, event.end&&event.end>xMin?Math.min(event.end,latest):latest);
   const maxScore=niceMax(Math.max(...top.map(b=>b.score),1));
   const x=(ms)=>padL+((ms-xMin)/(xEnd-xMin||1))*(W-padL-padR);
+  const xc=(ms)=>x(Math.max(xMin,Math.min(xEnd,ms))); // clamp to the visible window so solves from an older imported event don't push the line off-chart
   const y=(v)=>H-padB-(v/maxScore)*(H-padT-padB);
 
   let svgEls="";
@@ -248,15 +249,15 @@ function drawWorm(top, byName, event, allSolves){
     const pts=byName[b.name]||[];
     let cum=0; const path=[`M ${x(xMin)} ${y(0)}`];
     pts.forEach(s=>{
-      path.push(`L ${x(s.ts_ms)} ${y(cum)}`);
+      path.push(`L ${xc(s.ts_ms)} ${y(cum)}`);
       cum+=s.points;
-      path.push(`L ${x(s.ts_ms)} ${y(cum)}`);
+      path.push(`L ${xc(s.ts_ms)} ${y(cum)}`);
     });
     path.push(`L ${x(xEnd)} ${y(cum)}`);
     svgEls+=`<path d="${path.join(" ")}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
     pts.forEach(s=>{
       let c2=0; for(const p of pts){ c2+=p.points; if(p===s)break; }
-      svgEls+=`<circle cx="${x(s.ts_ms)}" cy="${y(c2)}" r="2.5" fill="${color}"/>`;
+      svgEls+=`<circle cx="${xc(s.ts_ms)}" cy="${y(c2)}" r="2.5" fill="${color}"/>`;
     });
     const label=b.name.length>13?b.name.slice(0,12)+"…":b.name;
     labels.push({y:y(cum),color,label});
@@ -289,7 +290,8 @@ async function loadChallenges(){
     const tiles=$(".tiles",div);
     groups[cat].forEach(c=>{
       const t=document.createElement("div"); t.className="tile"+(c.solved?" solved":"");
-      t.innerHTML=`<span class="t">${esc(c.title)}</span><span class="v">${c.value}</span>`;
+      const noSolves=STATE&&STATE.phase==="live"&&c.solves===0;
+      t.innerHTML=`<span class="t">${esc(c.title)}</span><span class="v"${noSolves?' style="color:var(--warn)"':""}>${c.value}</span>`;
       t.onclick=()=>openChallenge(c.id);
       tiles.appendChild(t);
     });
@@ -303,6 +305,7 @@ function openChallenge(id){
       ? `<div class="hintbox"><div class="sub">Hint (unlocked)</div><div class="h">${esc(c.hint)}</div></div>`
       : `<div class="hintbox"><button id="hintBtn" class="ghost">Unlock hint (−${c.hint_cost} pts)</button></div>`) : "";
   const isPost = STATE && STATE.phase==="post";
+  const noSolves = STATE && STATE.phase==="live" && c.solves===0;
   const ansCtl = `<div class="hintbox">
     <button id="showAns" class="ghost"${isPost?"":' disabled title="wait for the CTF to end"'}>Show answer</button>
     <div class="h" id="ansText" style="display:none"></div>
@@ -311,7 +314,7 @@ function openChallenge(id){
     <span class="x" id="close">✕</span>
     <div class="cat-lbl">${esc(c.category)}</div>
     <h3>${esc(c.title)}</h3>
-    <div class="val">${c.value} pts · ${c.solves} solve(s)</div>
+    <div class="val"${noSolves?' style="color:var(--warn)"':""}>${c.value} pts · ${c.solves} solve(s)</div>
     <div class="prompt">${linkify(c.prompt)}</div>
     ${c.solved
       ? `<div class="msg ok">Solved ✓</div>`
