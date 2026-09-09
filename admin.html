@@ -55,7 +55,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1 title="Open Source Intelligence - Capture The Flag">OSINT<span class="b">//</span>CTF · admin</h1>
+  <h1><a href="/" title="Open Source Intelligence - Capture The Flag — back to the player page" style="color:inherit;text-decoration:none">OSINT<span class="b">//</span>CTF</a> · admin</h1>
 
   <div id="gate" class="panel">
     <label>Admin token</label>
@@ -340,7 +340,7 @@ async function loadUsers(){
     row.className="prow";
     row.innerHTML=`<span>${esc(u.name)}</span>
       <span class="row" style="gap:4px">
-        <button class="iconbtn" title="Rename" data-r="${esc(u.uuid)}" data-n="${esc(u.name)}">✎</button>
+        <button class="iconbtn" title="Rename" data-r="${esc(u.uuid)}" data-n="${esc(u.name)}">✏️</button>
         <button class="iconbtn danger" title="Remove" data-x="${esc(u.uuid)}">🗑</button>
       </span>`;
     tb.appendChild(row);
