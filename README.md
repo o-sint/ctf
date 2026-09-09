@@ -92,3 +92,8 @@ git push origin main
 - Part 1 Q12 (crypto USD) had no answer -- omitted.
 - p1-13 (latest gophish contributor) is time-sensitive -- re-verify before each class.
 - Several answers rely on live third-party sites that rot; spot-check first.
+
+```
+wrangler dev --local --port 8787 --assets ./.local-assets
+
+```
