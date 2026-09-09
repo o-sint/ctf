@@ -78,8 +78,8 @@
   .modal.open{display:flex}
   .card{width:min(620px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
   .card .cat-lbl{font-family:var(--mono);font-size:22px;color:var(--acc2)}
-  .card h3{margin:4px 0 2px;font-size:18px;font-weight:600;color:var(--dim)}
-  .card .val{font-family:var(--mono);color:var(--gold);font-size:13px}
+  .card h3{margin:4px 26px 2px;font-size:16px;font-weight:400;color:var(--dim)}
+  .card .val{font-family:var(--mono);color:var(--gold);font-size:13px;text-align:right}
   .prompt{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border:1px solid var(--line);
     border-radius:8px;padding:12px;margin:14px 0;font-size:20px}
   .prompt a{word-break:break-all}
@@ -327,7 +327,7 @@ function openChallenge(id){
   const catIcon=ICONS[c.category];
   card.innerHTML=`
     <span class="x" id="close">✕</span>
-    <div class="cat-lbl">${catIcon?`<img src="${catIcon}" width="20" height="20" style="vertical-align:-5px;margin-right:6px"/>`:""}${esc(c.category)}</div>
+    <div class="cat-lbl">${catIcon?`<img src="${catIcon}" width="25" height="25" style="vertical-align:-5px;margin-right:6px"/>`:""}${esc(c.category)}</div>
     <h3>${esc(c.title)}</h3>
     <div class="val"${noSolves?' style="color:var(--warn)"':""}>${c.value} pts · ${c.solves} solve(s)</div>
     <div class="prompt">${linkify(c.prompt)}</div>
