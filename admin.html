@@ -22,10 +22,15 @@
   textarea{min-height:150px;white-space:pre;overflow:auto}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:9px 13px;border-radius:8px;width:auto;margin-top:10px}
+  .grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px}
+  button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:9px 13px;border-radius:8px;width:auto;margin-top:10px;box-sizing:border-box;height:37px}
   button:hover{border-color:var(--acc2)}
   button.primary{background:var(--acc);color:#04150e;border-color:var(--acc);font-weight:700}
+  button.primary:hover{background:#2ecf94;border-color:#2ecf94}
   button.danger{color:var(--warn);border-color:#3a2330}
+  button.danger:hover{background:rgba(255,107,107,.14);border-color:var(--warn)}
+  .row button,.row input[type=file]{margin-top:0}
+  .row input[type=file]{padding:7px 8px;height:37px;box-sizing:border-box}
   .msg{font-family:var(--mono);font-size:13px;margin-top:8px;min-height:16px}
   .ok{color:var(--acc)}.bad{color:var(--warn)}.dim{color:var(--dim)}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;table-layout:fixed}
@@ -34,8 +39,9 @@
   .pts{text-align:right;font-family:var(--mono);color:var(--gold)}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   #chTbl .prompt-cell{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2}
-  #chTbl td.actions{white-space:nowrap;text-align:right}
-  .iconbtn{padding:4px 7px;margin:0;font-size:13px;line-height:1}
+  #chTbl td:first-child,#chTbl th:first-child{white-space:nowrap}
+  #chTbl td.actions{white-space:nowrap;overflow:visible;display:flex;gap:4px;justify-content:flex-end;align-items:center}
+  .iconbtn{padding:4px 6px;margin:0;font-size:13px;line-height:1;flex:none;height:auto}
   code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px}
   a{color:var(--acc2)}
   #gate{max-width:420px;margin:60px auto}
@@ -62,10 +68,10 @@
   <div id="app" style="display:none">
     <div class="panel">
       <h2>Event</h2>
-      <label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" />
-      <div class="grid">
-        <div><label>Start</label><input type="datetime-local" id="evStart" /></div>
-        <div><label>End</label><input type="datetime-local" id="evEnd" /></div>
+      <label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" style="max-width:320px" />
+      <div class="row">
+        <div><label>Start</label><input type="datetime-local" id="evStart" style="width:auto" /></div>
+        <div><label>End</label><input type="datetime-local" id="evEnd" style="width:auto" /></div>
       </div>
       <div class="row"><button class="primary" id="evSave">Save event</button>
         <span class="dim" id="evNow"></span></div>
@@ -74,35 +80,32 @@
 
     <div class="panel">
       <h2>Bulk load challenges (JSON)</h2>
-      <div class="dim" style="font-size:12px">Array of challenge objects with <code>answers</code> as an array of accepted strings. Stored as plaintext and editable here (admin-only; never sent to players). Re-uploading an <code>id</code> overwrites it.</div>
-      <textarea id="bulk" placeholder='[ { "id":"p1-01", "category":"SOCIAL", "title":"...", "prompt":"...", "initial":100, "minimum":50, "decay":20, "hint":"", "hint_cost":0, "answers":["..."], "solution":"..." } ]'></textarea>
-      <div class="row">
+      <div class="dim" style="font-size:12px">Choose a challenges JSON file (re-uploading an <code>id</code> overwrites it) and Upload, or Download to back up everything currently loaded (including answers).</div>
+      <textarea id="bulk" style="display:none"></textarea>
+      <div class="row" style="margin-top:8px">
         <input type="file" id="bulkFile" accept=".json" style="width:auto" />
         <button class="primary" id="bulkBtn">Upload JSON</button>
         <button id="bulkExport">Download current challenges (backup)</button>
       </div>
-      <div class="dim" style="font-size:12px">"Download current challenges" saves every challenge — including answers — in the exact format this box accepts, so you can restore them later by choosing the file and clicking Upload.</div>
       <div class="msg" id="bulkMsg"></div>
     </div>
 
     <div class="panel">
       <h2>Add / edit one challenge</h2>
       <div class="row" style="margin-bottom:4px"><button id="c_new">+ New challenge</button></div>
-      <div class="grid3">
+      <div class="grid" style="grid-template-columns:1fr 1fr 2fr">
         <div><label>id</label><input id="c_id" placeholder="p1-01"/></div>
         <div><label>category</label><input id="c_cat" placeholder="GEO"/></div>
         <div><label>title</label><input id="c_title" placeholder="Cafe move"/></div>
       </div>
       <label>❔ prompt (question, include any target URL)</label><textarea id="c_prompt" style="min-height:70px"></textarea>
-      <div class="grid3">
+      <div class="grid6">
         <div><label>initial</label><input id="c_initial" type="number" value="100"/></div>
         <div><label>minimum</label><input id="c_min" type="number" value="50"/></div>
         <div><label>decay</label><input id="c_decay" type="number" value="20"/></div>
-      </div>
-      <div class="grid3">
-        <div><label>attempts_max</label><input id="c_att" type="number" value="10"/></div>
-        <div><label>holdoff_ms</label><input id="c_hold" type="number" value="30000"/></div>
-        <div><label>hint_cost</label><input id="c_hcost" type="number" value="0"/></div>
+        <div><label>attempts</label><input id="c_att" type="number" value="10"/></div>
+        <div><label>holdoff (sec)</label><input id="c_hold" type="number" value="30"/></div>
+        <div><label>hint cost</label><input id="c_hcost" type="number" value="0"/></div>
       </div>
       <label>👀 hint (optional)</label><input id="c_hint"/>
       <label>✅ accepted answers (one per line)</label><textarea id="c_answers" style="min-height:70px"></textarea>
@@ -115,7 +118,7 @@
       <h2>Challenges</h2>
       <div class="row"><button id="chReload">Reload</button><span class="dim" id="chCount"></span></div>
       <table id="chTbl">
-        <colgroup><col style="width:12%"><col style="width:10%"><col style="width:16%"><col><col style="width:9%"><col style="width:6%"><col style="width:58px"></colgroup>
+        <colgroup><col style="width:9%"><col style="width:10%"><col style="width:16%"><col><col style="width:9%"><col style="width:6%"><col style="width:76px"></colgroup>
         <thead><tr><th>id</th><th title="Category">cat</th><th>title</th><th>prompt</th><th class="pts">init/min</th><th title="Answers">ans</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
@@ -195,11 +198,21 @@ $("#bootBtn").onclick=async()=>{
   }catch(e){ $("#bootMsg").className="msg bad"; $("#bootMsg").textContent=e.message; }
 };
 
-async function loadAll(){ loadState(); loadChallenges(); loadUsers(); }
+async function loadAll(){ loadState(); loadChallenges(); loadUsers(); setInterval(loadState,1000); }
+const fmt=(ms)=>{ if(ms<0)ms=0; const s=Math.floor(ms/1000); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
+  return [h,m,ss].map(x=>String(x).padStart(2,"0")).join(":"); };
+let EV_NAME_FOCUSED=false;
+$("#evName").addEventListener("focus",()=>EV_NAME_FOCUSED=true);
+$("#evName").addEventListener("blur",()=>EV_NAME_FOCUSED=false);
 async function loadState(){
   const s=await api("/state",{},false);
-  $("#evName").value=s.name||""; $("#evStart").value=toLocal(s.start); $("#evEnd").value=toLocal(s.end);
-  $("#evNow").textContent="phase: "+s.phase;
+  if(!EV_NAME_FOCUSED) $("#evName").value=s.name||"";
+  $("#evStart").value=toLocal(s.start); $("#evEnd").value=toLocal(s.end);
+  const drift=Date.now()-s.now;
+  if(s.phase==="pre") $("#evNow").textContent="starts in "+fmt(s.start-(Date.now()-drift));
+  else if(s.phase==="live") $("#evNow").textContent="ends in "+fmt(s.end-(Date.now()-drift));
+  else if(s.phase==="post") $("#evNow").textContent="ended";
+  else $("#evNow").textContent="not scheduled";
 }
 $("#evSave").onclick=async()=>{
   try{ await api("/admin/event",{method:"POST",body:JSON.stringify({name:$("#evName").value,start:fromLocal($("#evStart").value),end:fromLocal($("#evEnd").value)})});
@@ -209,6 +222,7 @@ $("#evSave").onclick=async()=>{
 
 $("#bulkFile").onchange=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>$("#bulk").value=r.result;r.readAsText(f);};
 $("#bulkBtn").onclick=async()=>{
+  if(!$("#bulk").value.trim()){$("#bulkMsg").className="msg bad";$("#bulkMsg").textContent="Choose a JSON file first.";return;}
   let data; try{data=JSON.parse($("#bulk").value);}catch(e){$("#bulkMsg").className="msg bad";$("#bulkMsg").textContent="Invalid JSON: "+e.message;return;}
   try{ const j=await api("/admin/challenges",{method:"POST",body:JSON.stringify(data)});
     $("#bulkMsg").className="msg ok"; $("#bulkMsg").textContent=`Upserted ${j.upserted}. Skipped: ${j.skipped.join(", ")||"none"}.`; loadChallenges(); }
@@ -226,7 +240,7 @@ $("#bulkExport").onclick=async()=>{
 $("#c_new").onclick=()=>{
   ["c_id","c_cat","c_title","c_prompt","c_hint","c_answers","c_sol"].forEach(id=>$("#"+id).value="");
   $("#c_initial").value=100; $("#c_min").value=50; $("#c_decay").value=20;
-  $("#c_att").value=10; $("#c_hold").value=30000; $("#c_hcost").value=0;
+  $("#c_att").value=10; $("#c_hold").value=30; $("#c_hcost").value=0;
   $("#c_msg").className="msg dim"; $("#c_msg").textContent="New challenge. Fill in and Save.";
   $("#c_id").focus();
   window.scrollTo({top:$("#c_id").getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"});
@@ -234,7 +248,7 @@ $("#c_new").onclick=()=>{
 $("#c_save").onclick=async()=>{
   const obj={ id:$("#c_id").value.trim(), category:$("#c_cat").value.trim(), title:$("#c_title").value.trim(),
     prompt:$("#c_prompt").value, initial:+$("#c_initial").value, minimum:+$("#c_min").value, decay:+$("#c_decay").value,
-    attempts_max:+$("#c_att").value, holdoff_ms:+$("#c_hold").value, hint:$("#c_hint").value, hint_cost:+$("#c_hcost").value,
+    attempts_max:+$("#c_att").value, holdoff_ms:Math.round(+$("#c_hold").value*1000), hint:$("#c_hint").value, hint_cost:+$("#c_hcost").value,
     answers:$("#c_answers").value.split("\n").map(x=>x.trim()).filter(Boolean), solution:$("#c_sol").value };
   try{ const j=await api("/admin/challenges",{method:"POST",body:JSON.stringify([obj])});
     $("#c_msg").className="msg ok"; $("#c_msg").textContent = j.upserted?"Saved.":("Skipped: "+j.skipped.join(", ")); loadChallenges(); }
@@ -251,7 +265,7 @@ async function loadChallenges(){
     tr.innerHTML=`<td><code>${esc(c.id)}</code></td><td>${esc(c.category)}</td><td>${esc(c.title)}</td>
       <td class="prompt-cell" title="${esc(promptFull)}">${esc(promptFull)}</td>
       <td class="pts">${c.initial}/${c.minimum}</td><td>${(c.answers||[]).length}</td>
-      <td class="actions"><button class="iconbtn" title="Edit" data-e="${esc(c.id)}">✎</button> <button class="iconbtn danger" title="Delete" data-d="${esc(c.id)}">🗑</button></td>`;
+      <td class="actions"><button class="iconbtn" title="Edit" data-e="${esc(c.id)}">✏️</button><button class="iconbtn danger" title="Delete" data-d="${esc(c.id)}">🗑</button></td>`;
     tb.appendChild(tr);
   });
   tb.querySelectorAll("[data-d]").forEach(b=>b.onclick=async()=>{ if(!confirm("Delete "+b.dataset.d+"?"))return;
@@ -296,7 +310,7 @@ $("#iconReload").onclick=loadChallenges;
 function editChallenge(c){
   $("#c_id").value=c.id;$("#c_cat").value=c.category;$("#c_title").value=c.title;$("#c_prompt").value=c.prompt||"";
   $("#c_initial").value=c.initial;$("#c_min").value=c.minimum;$("#c_decay").value=c.decay;
-  $("#c_att").value=c.attempts_max;$("#c_hold").value=c.holdoff_ms;$("#c_hcost").value=c.hint_cost;
+  $("#c_att").value=c.attempts_max;$("#c_hold").value=Math.round((c.holdoff_ms||0)/1000);$("#c_hcost").value=c.hint_cost;
   $("#c_hint").value=c.hint||"";$("#c_sol").value=c.solution||"";
   $("#c_answers").value=(c.answers||[]).join("\n"); $("#c_answers").placeholder="one accepted answer per line";
   $("#c_msg").className="msg dim"; $("#c_msg").textContent="Loaded "+c.id+". Edit and Save.";
