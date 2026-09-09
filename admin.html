@@ -21,7 +21,9 @@
   input:focus,textarea:focus{border-color:var(--acc2)}
   textarea{min-height:150px;white-space:pre;overflow:auto}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .evgrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+  .evgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .evgrid .row{gap:10px}
+  .evgrid .row>div{flex:1;min-width:0}
   @media(max-width:640px){.evgrid{grid-template-columns:1fr}}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px}
@@ -32,6 +34,7 @@
   button.danger{color:var(--warn);border-color:#3a2330}
   button.danger:hover{background:rgba(255,107,107,.14);border-color:var(--warn)}
   .row input[type=file]{padding:7px 8px;height:37px;box-sizing:border-box;margin-top:10px}
+  .row input+button{margin-top:0}
   .msg{font-family:var(--mono);font-size:13px;margin-top:8px;min-height:16px}
   .ok{color:var(--acc)}.bad{color:var(--warn)}.dim{color:var(--dim)}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;table-layout:fixed}
@@ -71,8 +74,10 @@
       <h2>Event</h2>
       <div class="evgrid">
         <div><label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" /></div>
-        <div><label>Start</label><input type="datetime-local" id="evStart" /></div>
-        <div><label>End</label><input type="datetime-local" id="evEnd" /></div>
+        <div class="row">
+          <div><label>Start</label><input type="datetime-local" id="evStart" /></div>
+          <div><label>End</label><input type="datetime-local" id="evEnd" /></div>
+        </div>
       </div>
       <div class="row"><button class="primary" id="evSave">Save event</button>
         <span class="dim" id="evNow"></span></div>
@@ -101,7 +106,7 @@
         <div><label>category</label><input id="c_cat" placeholder="GEO"/></div>
         <div><label>title</label><input id="c_title" placeholder="Cafe move"/></div>
       </div>
-      <label>❔ prompt (question, include any target URL)</label><textarea id="c_prompt" style="min-height:70px"></textarea>
+      <label>❔ Question / Prompt (include any target URL)</label><textarea id="c_prompt" style="min-height:70px"></textarea>
       <div class="grid6">
         <div><label>initial</label><input id="c_initial" type="number" value="100"/></div>
         <div><label>minimum</label><input id="c_min" type="number" value="50"/></div>
