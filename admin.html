@@ -14,6 +14,7 @@
   .wrap{max-width:90%;margin:0 auto;padding:20px}
   h1{font-family:var(--mono);font-size:26px}.b{color:var(--acc)}
   h2{font-family:var(--mono);font-size:24px;color:var(--acc2);margin:22px 0 8px}
+  h2 img{width:25px;height:25px;vertical-align:-6px;margin-right:6px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
   label{display:block;font-family:var(--mono);font-size:14px;color:var(--dim);margin:8px 0 4px}
   input,textarea,button{font-family:var(--mono);font-size:14px}
@@ -74,7 +75,7 @@
   <div id="app" style="display:none">
     <div class="toprow">
       <div class="panel">
-        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSI1IiB3aWR0aD0iMTgiIGhlaWdodD0iMTYiIHJ4PSIyIi8+PHBhdGggZD0iTTMgOWgxOE04IDN2NE0xNiAzdjQiLz48L3N2Zz4=" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Event</h2>
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSI1IiB3aWR0aD0iMTgiIGhlaWdodD0iMTYiIHJ4PSIyIi8+PHBhdGggZD0iTTMgOWgxOE04IDN2NE0xNiAzdjQiLz48L3N2Zz4="/>Event</h2>
         <div><label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" /></div>
         <div class="row" style="margin-top:8px">
           <div style="flex:1;min-width:0"><label>Start</label><input type="datetime-local" id="evStart" /></div>
@@ -86,7 +87,7 @@
       </div>
 
       <div class="panel">
-        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMTVWNE04IDhsNC00IDQgNCIvPjxwYXRoIGQ9Ik00IDE1djRhMiAyIDAgMCAwIDIgMmgxMmEyIDIgMCAwIDAgMi0ydi00Ii8+PC9zdmc+" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Bulk load challenges (JSON)</h2>
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMTVWNE04IDhsNC00IDQgNCIvPjxwYXRoIGQ9Ik00IDE1djRhMiAyIDAgMCAwIDIgMmgxMmEyIDIgMCAwIDAgMi0ydi00Ii8+PC9zdmc+"/>Bulk load challenges (JSON)</h2>
         <div class="dim" style="font-size:12px">Choose a challenges JSON file (re-uploading an <code>id</code> overwrites it) and Upload, or Download to back up everything currently loaded (including answers).</div>
         <textarea id="bulk" style="display:none"></textarea>
         <div class="row" style="margin-top:8px">
@@ -101,7 +102,7 @@
     </div>
 
     <div class="panel">
-      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNCAyMGg0bDExLTExLTQtNEw0IDE2eiIvPjxwYXRoIGQ9Ik0xNC41IDQuNWw0IDQiLz48L3N2Zz4=" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Add / edit one challenge</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNCAyMGg0bDExLTExLTQtNEw0IDE2eiIvPjxwYXRoIGQ9Ik0xNC41IDQuNWw0IDQiLz48L3N2Zz4="/>Add / edit one challenge</h2>
       <div class="row" style="margin-bottom:4px"><button id="c_new">+ New challenge</button></div>
       <div class="grid" style="grid-template-columns:1fr 1fr 2fr">
         <div><label>id</label><input id="c_id" placeholder="p1-01"/></div>
@@ -125,7 +126,7 @@
     </div>
 
     <div class="panel">
-      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSA2aDExTTkgMTJoMTFNOSAxOGgxMSIvPjxjaXJjbGUgY3g9IjQiIGN5PSI2IiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjEiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjxjaXJjbGUgY3g9IjQiIGN5PSIxOCIgcj0iMSIgZmlsbD0iIzRhYTNmZiIgc3Ryb2tlPSJub25lIi8+PC9zdmc+" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Challenges</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSA2aDExTTkgMTJoMTFNOSAxOGgxMSIvPjxjaXJjbGUgY3g9IjQiIGN5PSI2IiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjEiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjxjaXJjbGUgY3g9IjQiIGN5PSIxOCIgcj0iMSIgZmlsbD0iIzRhYTNmZiIgc3Ryb2tlPSJub25lIi8+PC9zdmc+"/>Challenges</h2>
       <div class="row"><button id="chReload">Reload</button><span class="dim" id="chCount"></span></div>
       <table id="chTbl">
         <colgroup><col style="width:9%"><col style="width:10%"><col style="width:16%"><col><col style="width:9%"><col style="width:6%"><col style="width:76px"></colgroup>
@@ -135,7 +136,7 @@
     </div>
 
     <div class="panel">
-      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAuNiAxMi42TDEyIDRINHY4bDguNiA4LjZhMiAyIDAgMCAwIDIuOCAwbDUuMi01LjJhMiAyIDAgMCAwIDAtMi44eiIvPjxjaXJjbGUgY3g9IjgiIGN5PSI4IiByPSIxLjQiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Category Icons</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAuNiAxMi42TDEyIDRINHY4bDguNiA4LjZhMiAyIDAgMCAwIDIuOCAwbDUuMi01LjJhMiAyIDAgMCAwIDAtMi44eiIvPjxjaXJjbGUgY3g9IjgiIGN5PSI4IiByPSIxLjQiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg=="/>Category Icons</h2>
       <div class="dim" style="font-size:12px">One icon per category, shown on the player page. Paste the "data URI img" (base64) from
         <a href="https://allsvgicons.com/search/?q=api" target="_blank" rel="noopener">allsvgicons.com</a> — pick any icon there, copy its data URI, paste below, Save.
         Leave blank + Save to revert to the built-in default.</div>
@@ -144,14 +145,14 @@
     </div>
 
     <div class="panel">
-      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI5IiBjeT0iOCIgcj0iMy4yIi8+PHBhdGggZD0iTTMgMjBjMC0zLjMgMi43LTYgNi02czYgMi43IDYgNiIvPjxjaXJjbGUgY3g9IjE3IiBjeT0iOSIgcj0iMi42Ii8+PHBhdGggZD0iTTE1LjMgMTQuMmMyLjMuNSA0IDIuNCA0IDUuOCIvPjwvc3ZnPg==" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Players</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI5IiBjeT0iOCIgcj0iMy4yIi8+PHBhdGggZD0iTTMgMjBjMC0zLjMgMi43LTYgNi02czYgMi43IDYgNiIvPjxjaXJjbGUgY3g9IjE3IiBjeT0iOSIgcj0iMi42Ii8+PHBhdGggZD0iTTE1LjMgMTQuMmMyLjMuNSA0IDIuNCA0IDUuOCIvPjwvc3ZnPg=="/>Players</h2>
       <button id="uReload">Reload</button>
       <div id="uTbl" class="playersGrid"></div>
     </div>
 
     <div class="toprow">
       <div class="panel">
-        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgNHYxMU04IDExbDQgNCA0LTQiLz48cGF0aCBkPSJNNCAxN3YzYTIgMiAwIDAgMCAyIDJoMTJhMiAyIDAgMCAwIDItMnYtMyIvPjwvc3ZnPg==" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Export</h2>
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgNHYxMU04IDExbDQgNCA0LTQiLz48cGF0aCBkPSJNNCAxN3YzYTIgMiAwIDAgMCAyIDJoMTJhMiAyIDAgMCAwIDItMnYtMyIvPjwvc3ZnPg=="/>Export</h2>
         <div class="row">
           <button class="primary" id="expCsv">Leaderboard CSV</button>
           <button id="expJson">Full JSON</button>
@@ -161,7 +162,7 @@
       </div>
 
       <div class="panel">
-        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgM2wxMCAxOEgyeiIvPjxsaW5lIHgxPSIxMiIgeTE9IjkiIHgyPSIxMiIgeTI9IjE0Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxNy4zIiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Danger zone</h2>
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgM2wxMCAxOEgyeiIvPjxsaW5lIHgxPSIxMiIgeTE9IjkiIHgyPSIxMiIgeTI9IjE0Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxNy4zIiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4="/>Danger zone</h2>
         <div class="row">
           <button class="danger" id="reset">Reset scoreboard</button>
           <span class="dim">wipes players, solves, attempts, hints — keeps challenges & event</span>
