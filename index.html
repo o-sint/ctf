@@ -78,7 +78,7 @@
   .modal.open{display:flex}
   .card{width:min(620px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
   .card .cat-lbl{font-family:var(--mono);font-size:22px;color:var(--acc2)}
-  .card h3{margin:4px 0 2px;font-size:18px}
+  .card h3{margin:4px 0 2px;font-size:18px;font-weight:600;color:var(--dim)}
   .card .val{font-family:var(--mono);color:var(--gold);font-size:13px}
   .prompt{white-space:pre-wrap;word-break:break-word;background:var(--panel2);border:1px solid var(--line);
     border-radius:8px;padding:12px;margin:14px 0;font-size:20px}
@@ -97,7 +97,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="brand" title="Open Source Intelligence - Capture The Flag">OSINT<span class="b">//</span>CTF</div>
+    <div class="brand" title="Open Source Intelligence - Capture The Flag">🔎 OSINT<span class="b">//</span>CTF</div>
     <div class="status" id="status">
       <div class="idbar" id="idbar"><!-- filled by JS --></div>
       <div id="evname">—</div>
@@ -140,7 +140,7 @@ const uuidKey="ctf_uuid", nameKey="ctf_name";
 let UUID = localStorage.getItem(uuidKey);
 if(!UUID){ UUID = (crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()); localStorage.setItem(uuidKey,UUID); }
 let NAME = localStorage.getItem(nameKey) || "";
-let STATE=null, CH=[];
+let STATE=null, CH=[], ICONS={};
 
 async function api(path,opts={}){
   const r = await fetch(API+path,{headers:{"Content-Type":"application/json"},...opts});
@@ -290,7 +290,7 @@ function drawWorm(top, byName, event, allSolves){
 async function loadChallenges(){
   const note=$("#chNote"), cats=$("#cats");
   const j=await api("/challenges?uuid="+encodeURIComponent(UUID));
-  CH=j.challenges; const icons=j.icons||{};
+  CH=j.challenges; ICONS=j.icons||{}; const icons=ICONS;
   if(j.phase==="pre"||j.phase==="unset"){ note.textContent = j.phase==="pre"?"Challenges unlock when the event starts.":"No event scheduled yet."; cats.innerHTML=""; $("#chTotal").textContent=""; return; }
   note.textContent="";
   $("#chTotal").textContent=" ("+CH.length+")";
@@ -324,9 +324,10 @@ function openChallenge(id){
     <button id="showAns" class="ghost"${isPost?"":' disabled title="wait for the CTF to end"'}>Show answer</button>
     <div class="h" id="ansText" style="display:none"></div>
   </div>`;
+  const catIcon=ICONS[c.category];
   card.innerHTML=`
     <span class="x" id="close">✕</span>
-    <div class="cat-lbl">${esc(c.category)}</div>
+    <div class="cat-lbl">${catIcon?`<img src="${catIcon}" width="20" height="20" style="vertical-align:-5px;margin-right:6px"/>`:""}${esc(c.category)}</div>
     <h3>${esc(c.title)}</h3>
     <div class="val"${noSolves?' style="color:var(--warn)"':""}>${c.value} pts · ${c.solves} solve(s)</div>
     <div class="prompt">${linkify(c.prompt)}</div>
