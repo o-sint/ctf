@@ -12,19 +12,21 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
   .wrap{max-width:90%;margin:0 auto;padding:20px}
-  h1{font-family:var(--mono);font-size:20px}.b{color:var(--acc)}
-  h2{font-family:var(--mono);font-size:14px;color:var(--acc2);margin:22px 0 8px}
+  h1{font-family:var(--mono);font-size:26px}.b{color:var(--acc)}
+  h2{font-family:var(--mono);font-size:24px;color:var(--acc2);margin:22px 0 8px}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
-  label{display:block;font-family:var(--mono);font-size:12px;color:var(--dim);margin:8px 0 4px}
+  label{display:block;font-family:var(--mono);font-size:14px;color:var(--dim);margin:8px 0 4px}
   input,textarea,button{font-family:var(--mono);font-size:14px}
   input,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:9px 11px;border-radius:8px;outline:none}
   input:focus,textarea:focus{border-color:var(--acc2)}
   textarea{min-height:150px;white-space:pre;overflow:auto}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .evgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .evgrid .row{gap:10px}
-  .evgrid .row>div{flex:1;min-width:0}
-  @media(max-width:640px){.evgrid{grid-template-columns:1fr}}
+  .toprow{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch;margin-bottom:14px}
+  .toprow>.panel{margin-bottom:0}
+  @media(max-width:900px){.toprow{grid-template-columns:1fr}}
+  .playersGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  @media(max-width:640px){.playersGrid{grid-template-columns:1fr}}
+  .prow{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .grid6{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:10px}
   button{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:9px 13px;border-radius:8px;width:auto;margin-top:10px;box-sizing:border-box;height:37px}
@@ -70,36 +72,36 @@
   </div>
 
   <div id="app" style="display:none">
-    <div class="panel">
-      <h2>Event</h2>
-      <div class="evgrid">
+    <div class="toprow">
+      <div class="panel">
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIzIiB5PSI1IiB3aWR0aD0iMTgiIGhlaWdodD0iMTYiIHJ4PSIyIi8+PHBhdGggZD0iTTMgOWgxOE04IDN2NE0xNiAzdjQiLz48L3N2Zz4=" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Event</h2>
         <div><label>Name</label><input type="text" id="evName" placeholder="Fall 2026 OSINT CTF" /></div>
-        <div class="row">
-          <div><label>Start</label><input type="datetime-local" id="evStart" /></div>
-          <div><label>End</label><input type="datetime-local" id="evEnd" /></div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:1;min-width:0"><label>Start</label><input type="datetime-local" id="evStart" /></div>
+          <div style="flex:1;min-width:0"><label>End</label><input type="datetime-local" id="evEnd" /></div>
         </div>
+        <div class="row"><button class="primary" id="evSave">Save event</button>
+          <span class="dim" id="evNow"></span></div>
+        <div class="msg" id="evMsg"></div>
       </div>
-      <div class="row"><button class="primary" id="evSave">Save event</button>
-        <span class="dim" id="evNow"></span></div>
-      <div class="msg" id="evMsg"></div>
+
+      <div class="panel">
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMTVWNE04IDhsNC00IDQgNCIvPjxwYXRoIGQ9Ik00IDE1djRhMiAyIDAgMCAwIDIgMmgxMmEyIDIgMCAwIDAgMi0ydi00Ii8+PC9zdmc+" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Bulk load challenges (JSON)</h2>
+        <div class="dim" style="font-size:12px">Choose a challenges JSON file (re-uploading an <code>id</code> overwrites it) and Upload, or Download to back up everything currently loaded (including answers).</div>
+        <textarea id="bulk" style="display:none"></textarea>
+        <div class="row" style="margin-top:8px">
+          <input type="file" id="bulkFile" accept=".json" style="width:auto" />
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="primary" id="bulkBtn">Upload JSON</button>
+          <button id="bulkExport">Download current challenges (backup)</button>
+        </div>
+        <div class="msg" id="bulkMsg"></div>
+      </div>
     </div>
 
     <div class="panel">
-      <h2>Bulk load challenges (JSON)</h2>
-      <div class="dim" style="font-size:12px">Choose a challenges JSON file (re-uploading an <code>id</code> overwrites it) and Upload, or Download to back up everything currently loaded (including answers).</div>
-      <textarea id="bulk" style="display:none"></textarea>
-      <div class="row" style="margin-top:8px">
-        <input type="file" id="bulkFile" accept=".json" style="width:auto" />
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button class="primary" id="bulkBtn">Upload JSON</button>
-        <button id="bulkExport">Download current challenges (backup)</button>
-      </div>
-      <div class="msg" id="bulkMsg"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Add / edit one challenge</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNCAyMGg0bDExLTExLTQtNEw0IDE2eiIvPjxwYXRoIGQ9Ik0xNC41IDQuNWw0IDQiLz48L3N2Zz4=" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Add / edit one challenge</h2>
       <div class="row" style="margin-bottom:4px"><button id="c_new">+ New challenge</button></div>
       <div class="grid" style="grid-template-columns:1fr 1fr 2fr">
         <div><label>id</label><input id="c_id" placeholder="p1-01"/></div>
@@ -123,7 +125,7 @@
     </div>
 
     <div class="panel">
-      <h2>Challenges</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSA2aDExTTkgMTJoMTFNOSAxOGgxMSIvPjxjaXJjbGUgY3g9IjQiIGN5PSI2IiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjEiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjxjaXJjbGUgY3g9IjQiIGN5PSIxOCIgcj0iMSIgZmlsbD0iIzRhYTNmZiIgc3Ryb2tlPSJub25lIi8+PC9zdmc+" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Challenges</h2>
       <div class="row"><button id="chReload">Reload</button><span class="dim" id="chCount"></span></div>
       <table id="chTbl">
         <colgroup><col style="width:9%"><col style="width:10%"><col style="width:16%"><col><col style="width:9%"><col style="width:6%"><col style="width:76px"></colgroup>
@@ -133,7 +135,7 @@
     </div>
 
     <div class="panel">
-      <h2>Category Icons</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAuNiAxMi42TDEyIDRINHY4bDguNiA4LjZhMiAyIDAgMCAwIDIuOCAwbDUuMi01LjJhMiAyIDAgMCAwIDAtMi44eiIvPjxjaXJjbGUgY3g9IjgiIGN5PSI4IiByPSIxLjQiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Category Icons</h2>
       <div class="dim" style="font-size:12px">One icon per category, shown on the player page. Paste the "data URI img" (base64) from
         <a href="https://allsvgicons.com/search/?q=api" target="_blank" rel="noopener">allsvgicons.com</a> — pick any icon there, copy its data URI, paste below, Save.
         Leave blank + Save to revert to the built-in default.</div>
@@ -142,31 +144,33 @@
     </div>
 
     <div class="panel">
-      <h2>Players</h2>
+      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI5IiBjeT0iOCIgcj0iMy4yIi8+PHBhdGggZD0iTTMgMjBjMC0zLjMgMi43LTYgNi02czYgMi43IDYgNiIvPjxjaXJjbGUgY3g9IjE3IiBjeT0iOSIgcj0iMi42Ii8+PHBhdGggZD0iTTE1LjMgMTQuMmMyLjMuNSA0IDIuNCA0IDUuOCIvPjwvc3ZnPg==" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Players</h2>
       <button id="uReload">Reload</button>
-      <table id="uTbl"><thead><tr><th>name</th><th></th></tr></thead><tbody></tbody></table>
+      <div id="uTbl" class="playersGrid"></div>
     </div>
 
-    <div class="panel">
-      <h2>Export</h2>
-      <div class="row">
-        <button class="primary" id="expCsv">Leaderboard CSV</button>
-        <button id="expJson">Full JSON</button>
-        <span class="dim" id="expMsg"></span>
+    <div class="toprow">
+      <div class="panel">
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgNHYxMU04IDExbDQgNCA0LTQiLz48cGF0aCBkPSJNNCAxN3YzYTIgMiAwIDAgMCAyIDJoMTJhMiAyIDAgMCAwIDItMnYtMyIvPjwvc3ZnPg==" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Export</h2>
+        <div class="row">
+          <button class="primary" id="expCsv">Leaderboard CSV</button>
+          <button id="expJson">Full JSON</button>
+          <span class="dim" id="expMsg"></span>
+        </div>
+        <div class="dim" style="font-size:12px;margin-top:6px">CSV = ranked board (rank, name, score, solves, last solve). JSON adds every solve with timestamps.</div>
       </div>
-      <div class="dim" style="font-size:12px;margin-top:6px">CSV = ranked board (rank, name, score, solves, last solve). JSON adds every solve with timestamps.</div>
-    </div>
 
-    <div class="panel">
-      <h2>Danger zone</h2>
-      <div class="row">
-        <button class="danger" id="reset">Reset scoreboard</button>
-        <span class="dim">wipes players, solves, attempts, hints — keeps challenges & event</span>
+      <div class="panel">
+        <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgM2wxMCAxOEgyeiIvPjxsaW5lIHgxPSIxMiIgeTE9IjkiIHgyPSIxMiIgeTI9IjE0Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxNy4zIiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48L3N2Zz4=" width="18" height="18" style="vertical-align:-4px;margin-right:6px"/>Danger zone</h2>
+        <div class="row">
+          <button class="danger" id="reset">Reset scoreboard</button>
+          <span class="dim">wipes players, solves, attempts, hints — keeps challenges & event</span>
+        </div>
+        <label style="margin-top:14px">Rotate admin token (new, >= 12 chars)</label>
+        <div class="row"><input type="password" id="newTok" style="max-width:340px" placeholder="new token"/>
+          <button class="danger" id="rot">Rotate token</button></div>
+        <div class="msg" id="dzMsg"></div>
       </div>
-      <label style="margin-top:14px">Rotate admin token (new, >= 12 chars)</label>
-      <div class="row"><input type="password" id="newTok" style="max-width:340px" placeholder="new token"/>
-        <button class="danger" id="rot">Rotate token</button></div>
-      <div class="msg" id="dzMsg"></div>
     </div>
   </div>
 </div>
@@ -330,13 +334,16 @@ $("#chReload").onclick=loadChallenges;
 
 async function loadUsers(){
   const j=await api("/admin/users");
-  const tb=$("#uTbl tbody"); tb.innerHTML="";
+  const tb=$("#uTbl"); tb.innerHTML="";
   j.users.forEach(u=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${esc(u.name)}</td><td class="row">
-      <button data-r="${esc(u.uuid)}" data-n="${esc(u.name)}">rename</button>
-      <button class="danger" data-x="${esc(u.uuid)}">remove</button></td>`;
-    tb.appendChild(tr);
+    const row=document.createElement("div");
+    row.className="prow";
+    row.innerHTML=`<span>${esc(u.name)}</span>
+      <span class="row" style="gap:4px">
+        <button class="iconbtn" title="Rename" data-r="${esc(u.uuid)}" data-n="${esc(u.name)}">✎</button>
+        <button class="iconbtn danger" title="Remove" data-x="${esc(u.uuid)}">🗑</button>
+      </span>`;
+    tb.appendChild(row);
   });
   tb.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{
     const nn=prompt("New name for "+b.dataset.n+":",b.dataset.n); if(!nn)return;
