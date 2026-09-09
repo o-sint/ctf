@@ -201,13 +201,17 @@ $("#bootBtn").onclick=async()=>{
 async function loadAll(){ loadState(); loadChallenges(); loadUsers(); setInterval(loadState,1000); }
 const fmt=(ms)=>{ if(ms<0)ms=0; const s=Math.floor(ms/1000); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
   return [h,m,ss].map(x=>String(x).padStart(2,"0")).join(":"); };
-let EV_NAME_FOCUSED=false;
-$("#evName").addEventListener("focus",()=>EV_NAME_FOCUSED=true);
-$("#evName").addEventListener("blur",()=>EV_NAME_FOCUSED=false);
+const EV_FOCUS={};
+["evName","evStart","evEnd"].forEach(id=>{
+  EV_FOCUS[id]=false;
+  $("#"+id).addEventListener("focus",()=>EV_FOCUS[id]=true);
+  $("#"+id).addEventListener("blur",()=>EV_FOCUS[id]=false);
+});
 async function loadState(){
   const s=await api("/state",{},false);
-  if(!EV_NAME_FOCUSED) $("#evName").value=s.name||"";
-  $("#evStart").value=toLocal(s.start); $("#evEnd").value=toLocal(s.end);
+  if(!EV_FOCUS.evName) $("#evName").value=s.name||"";
+  if(!EV_FOCUS.evStart) $("#evStart").value=toLocal(s.start);
+  if(!EV_FOCUS.evEnd) $("#evEnd").value=toLocal(s.end);
   const drift=Date.now()-s.now;
   if(s.phase==="pre") $("#evNow").textContent="starts in "+fmt(s.start-(Date.now()-drift));
   else if(s.phase==="live") $("#evNow").textContent="ends in "+fmt(s.end-(Date.now()-drift));
