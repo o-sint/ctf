@@ -95,6 +95,7 @@ async function getState(env) {
     start: Number(await cfg(env, "event_start", 0)),
     end: Number(await cfg(env, "event_end", 0)),
     now, phase: await phaseOf(env, now),
+    code_required: !!(await joinCode(env)),
   });
 }
 
@@ -172,6 +173,10 @@ async function getChallenges(env, uuid) {
   return json({ phase, challenges: list, icons });
 }
 
+async function joinCode(env) {
+  return String((await cfg(env, "join_code", "")) || "").trim();
+}
+
 async function register(env, b) {
   const uuid = String(b.uuid || "").slice(0, 64);
   const name = String(b.name || "").trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 24);
@@ -180,6 +185,13 @@ async function register(env, b) {
   const clash = await env.DB.prepare("SELECT uuid FROM users WHERE name_lc=? AND uuid<>?").bind(lc, uuid).first();
   if (clash) return err("username taken", 409);
   const exists = await env.DB.prepare("SELECT uuid FROM users WHERE uuid=?").bind(uuid).first();
+  if (!exists) {
+    // access code only gates first-time join, not renaming an already-registered player
+    const required = await joinCode(env);
+    if (required && String(b.code || "").trim().toLowerCase() !== required.toLowerCase()) {
+      return err("wrong access code", 403);
+    }
+  }
   if (exists) await env.DB.prepare("UPDATE users SET name=?, name_lc=? WHERE uuid=?").bind(name, lc, uuid).run();
   else await env.DB.prepare("INSERT INTO users(uuid,name,name_lc,created_ms) VALUES(?,?,?,?)").bind(uuid, name, lc, Date.now()).run();
   return json({ ok: true, name });
@@ -398,6 +410,14 @@ export default {
           }
           await setCfg(env, "category_icons", JSON.stringify(cur));
           return json({ ok: true, overrides: cur });
+        }
+        if (req.method === "GET" && p === "/admin/join-code") {
+          return json({ code: await joinCode(env) });
+        }
+        if (req.method === "POST" && p === "/admin/join-code") {
+          const code = String(body.code || "").trim().slice(0, 64);
+          await setCfg(env, "join_code", code);
+          return json({ ok: true, code });
         }
         return err("not found", 404);
       }

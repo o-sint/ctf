@@ -84,6 +84,11 @@
         <div class="row"><button class="primary" id="evSave">Save event</button>
           <span class="dim" id="evNow"></span></div>
         <div class="msg" id="evMsg"></div>
+
+        <label style="margin-top:14px">Access code (public — post it wherever you announce the event; leave blank to let anyone join)</label>
+        <div class="row"><input type="text" id="joinCode" placeholder="e.g. flamingo" style="max-width:220px"/>
+          <button id="joinCodeSave">Save code</button></div>
+        <div class="msg" id="joinCodeMsg"></div>
       </div>
 
       <div class="panel">
@@ -211,7 +216,17 @@ $("#bootBtn").onclick=async()=>{
   }catch(e){ $("#bootMsg").className="msg bad"; $("#bootMsg").textContent=e.message; }
 };
 
-async function loadAll(){ loadState(); loadChallenges(); loadUsers(); setInterval(loadState,1000); }
+async function loadAll(){ loadState(); loadChallenges(); loadUsers(); loadJoinCode(); setInterval(loadState,1000); }
+async function loadJoinCode(){
+  try{ const j=await api("/admin/join-code"); $("#joinCode").value=j.code||""; }catch(e){}
+}
+$("#joinCodeSave").onclick=async()=>{
+  try{
+    const j=await api("/admin/join-code",{method:"POST",body:JSON.stringify({code:$("#joinCode").value.trim()})});
+    $("#joinCodeMsg").className="msg ok";
+    $("#joinCodeMsg").textContent=j.code?`Saved. Players now need "${j.code}" to join.`:"Saved. Anyone can join (no code required).";
+  }catch(e){ $("#joinCodeMsg").className="msg bad"; $("#joinCodeMsg").textContent=e.message; }
+};
 const fmt=(ms)=>{ if(ms<0)ms=0; const s=Math.floor(ms/1000); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
   return [h,m,ss].map(x=>String(x).padStart(2,"0")).join(":"); };
 let EV_FORM_LOADED=false;
