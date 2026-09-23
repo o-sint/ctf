@@ -15,6 +15,9 @@
   h1{font-family:var(--mono);font-size:26px}.b{color:var(--acc)}
   h2{font-family:var(--mono);font-size:24px;color:var(--acc2);margin:22px 0 8px}
   h2 img{width:25px;height:25px;vertical-align:-6px;margin-right:6px}
+  summary{cursor:pointer;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary h2{display:inline-block;margin:8px 0}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
   label{display:block;font-family:var(--mono);font-size:14px;color:var(--dim);margin:8px 0 4px}
   input,textarea,button{font-family:var(--mono);font-size:14px}
@@ -45,6 +48,9 @@
   th{color:var(--dim);font-family:var(--mono);font-size:11px}
   .pts{text-align:right;font-family:var(--mono);color:var(--gold)}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .chTblWrap{max-height:460px;overflow-y:auto;border-radius:8px}
+  #iconRows{max-height:450px;overflow-y:auto;padding-right:4px}
+  #chTbl thead th{position:sticky;top:0;background:var(--panel);z-index:1}
   #chTbl .prompt-cell{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2}
   #chTbl td:first-child,#chTbl th:first-child{white-space:nowrap}
   #chTbl td.actions{white-space:nowrap;overflow:visible;display:flex;gap:4px;justify-content:flex-end;align-items:center}
@@ -86,7 +92,7 @@
         <div class="msg" id="evMsg"></div>
 
         <label style="margin-top:14px">Access code (public — post it wherever you announce the event; leave blank to let anyone join)</label>
-        <div class="row"><input type="text" id="joinCode" placeholder="e.g. flamingo" style="max-width:220px"/>
+        <div class="row"><input type="text" id="joinCode" placeholder="e.g. osintctf" style="max-width:220px"/>
           <button id="joinCodeSave">Save code</button></div>
         <div class="msg" id="joinCodeMsg"></div>
       </div>
@@ -131,28 +137,36 @@
     </div>
 
     <div class="panel">
-      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSA2aDExTTkgMTJoMTFNOSAxOGgxMSIvPjxjaXJjbGUgY3g9IjQiIGN5PSI2IiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjEiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjxjaXJjbGUgY3g9IjQiIGN5PSIxOCIgcj0iMSIgZmlsbD0iIzRhYTNmZiIgc3Ryb2tlPSJub25lIi8+PC9zdmc+"/>Challenges</h2>
-      <div class="row"><button id="chReload">Reload</button><span class="dim" id="chCount"></span></div>
-      <table id="chTbl">
-        <colgroup><col style="width:9%"><col style="width:10%"><col style="width:16%"><col><col style="width:9%"><col style="width:6%"><col style="width:76px"></colgroup>
-        <thead><tr><th>id</th><th title="Category">cat</th><th>title</th><th>prompt</th><th class="pts">init/min</th><th title="Answers">ans</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
+      <details id="chDetails">
+        <summary><h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSA2aDExTTkgMTJoMTFNOSAxOGgxMSIvPjxjaXJjbGUgY3g9IjQiIGN5PSI2IiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjEiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjxjaXJjbGUgY3g9IjQiIGN5PSIxOCIgcj0iMSIgZmlsbD0iIzRhYTNmZiIgc3Ryb2tlPSJub25lIi8+PC9zdmc+"/>Challenges</h2></summary>
+        <div class="row"><button id="chReload">Reload</button><span class="dim" id="chCount"></span></div>
+        <div class="chTblWrap">
+          <table id="chTbl">
+            <colgroup><col style="width:9%"><col style="width:10%"><col style="width:16%"><col><col style="width:9%"><col style="width:6%"><col style="width:76px"></colgroup>
+            <thead><tr><th>id</th><th title="Category">cat</th><th>title</th><th>prompt</th><th class="pts">init/min</th><th title="Answers">ans</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
     </div>
 
     <div class="panel">
-      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAuNiAxMi42TDEyIDRINHY4bDguNiA4LjZhMiAyIDAgMCAwIDIuOCAwbDUuMi01LjJhMiAyIDAgMCAwIDAtMi44eiIvPjxjaXJjbGUgY3g9IjgiIGN5PSI4IiByPSIxLjQiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg=="/>Category Icons</h2>
-      <div class="dim" style="font-size:12px">One icon per category, shown on the player page. Paste the "data URI img" (base64) from
-        <a href="https://allsvgicons.com/search/?q=api" target="_blank" rel="noopener">allsvgicons.com</a> — pick any icon there, copy its data URI, paste below, Save.
-        Leave blank + Save to revert to the built-in default.</div>
-      <div class="row"><button id="iconReload">Reload</button></div>
-      <div id="iconRows" style="margin-top:8px"></div>
+      <details id="iconDetails">
+        <summary><h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAuNiAxMi42TDEyIDRINHY4bDguNiA4LjZhMiAyIDAgMCAwIDIuOCAwbDUuMi01LjJhMiAyIDAgMCAwIDAtMi44eiIvPjxjaXJjbGUgY3g9IjgiIGN5PSI4IiByPSIxLjQiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg=="/>Category Icons</h2></summary>
+        <div class="dim" style="font-size:12px">One icon per category, shown on the player page. Paste the "data URI img" (base64) from
+          <a href="https://allsvgicons.com/search/?q=api" target="_blank" rel="noopener">allsvgicons.com</a> — pick any icon there, copy its data URI, paste below, Save.
+          Leave blank + Save to revert to the built-in default.</div>
+        <div class="row"><button id="iconReload">Reload</button></div>
+        <div id="iconRows" style="margin-top:8px"></div>
+      </details>
     </div>
 
     <div class="panel">
-      <h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI5IiBjeT0iOCIgcj0iMy4yIi8+PHBhdGggZD0iTTMgMjBjMC0zLjMgMi43LTYgNi02czYgMi43IDYgNiIvPjxjaXJjbGUgY3g9IjE3IiBjeT0iOSIgcj0iMi42Ii8+PHBhdGggZD0iTTE1LjMgMTQuMmMyLjMuNSA0IDIuNCA0IDUuOCIvPjwvc3ZnPg=="/>Players</h2>
-      <button id="uReload">Reload</button>
-      <div id="uTbl" class="playersGrid"></div>
+      <details id="uDetails">
+        <summary><h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSI5IiBjeT0iOCIgcj0iMy4yIi8+PHBhdGggZD0iTTMgMjBjMC0zLjMgMi43LTYgNi02czYgMi43IDYgNiIvPjxjaXJjbGUgY3g9IjE3IiBjeT0iOSIgcj0iMi42Ii8+PHBhdGggZD0iTTE1LjMgMTQuMmMyLjMuNSA0IDIuNCA0IDUuOCIvPjwvc3ZnPg=="/>Players</h2></summary>
+        <button id="uReload">Reload</button>
+        <div id="uTbl" class="playersGrid"></div>
+      </details>
     </div>
 
     <div class="toprow">

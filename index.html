@@ -73,6 +73,7 @@
   .tile.solved .t::before{content:"✓ ";color:var(--acc)}
   .tile.solved .v{color:var(--acc)}
   .sub{font-size:11px;color:var(--dim);font-family:var(--mono)}
+  .code-sub{font-size:13px;color:var(--dim);font-family:var(--mono);margin-bottom:8px}
 
   .modal{position:fixed;inset:0;background:rgba(3,6,14,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
   .modal.open{display:flex}
@@ -176,9 +177,9 @@ function openCodeModal(name){
   const card=$("#modalCard");
   card.innerHTML=`
     <span class="x" id="close">✕</span>
-    <h3>Access code</h3>
-    <div class="sub" style="margin-bottom:10px">Enter the code from the announcement to join as <b>${esc(name)}</b>.</div>
-    <div class="row"><input type="text" id="codeModalIn" placeholder="access code" autocomplete="off"/>
+    <h2>Access code</h2>
+    <div class="code-sub">Enter the code to join as <b>${esc(name)}</b>.</div>
+    <div class="row code-sub"><input type="text" id="codeModalIn" placeholder="access code" autocomplete="off"/>
       <button class="primary" id="codeModalBtn">Join</button></div>
     <div class="msg" id="codeModalMsg"></div>`;
   $("#close").onclick=closeModal;
