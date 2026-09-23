@@ -160,21 +160,44 @@ function renderIdbar(){
     $("#editName").onclick=()=>promptName(NAME);
     $("#delName").onclick=removeMe;
   }else{
-    bar.innerHTML=`<input type="text" id="codeIn" placeholder="access code" maxlength="64" style="max-width:110px" />
-      <input type="text" id="nameIn" placeholder="pick a username" maxlength="24" />
+    bar.innerHTML=`<input type="text" id="nameIn" placeholder="pick a username" maxlength="24" />
       <button id="joinBtn" class="primary">Join</button>
       <span class="sub" id="joinMsg"></span>`;
-    $("#joinBtn").onclick=()=>promptName($("#nameIn").value,$("#codeIn").value);
-    $("#nameIn").onkeydown=(e)=>{if(e.key==="Enter")promptName($("#nameIn").value,$("#codeIn").value);};
-    $("#codeIn").onkeydown=(e)=>{if(e.key==="Enter")promptName($("#nameIn").value,$("#codeIn").value);};
+    $("#joinBtn").onclick=()=>startJoin($("#nameIn").value);
+    $("#nameIn").onkeydown=(e)=>{if(e.key==="Enter")startJoin($("#nameIn").value);};
   }
 }
-async function promptName(v,code){
+function startJoin(v){
+  const name=(v||"").trim(); if(!name) return;
+  if(STATE && STATE.code_required) openCodeModal(name);
+  else promptName(name);
+}
+function openCodeModal(name){
+  const card=$("#modalCard");
+  card.innerHTML=`
+    <span class="x" id="close">✕</span>
+    <h3>Access code</h3>
+    <div class="sub" style="margin-bottom:10px">Enter the code from the announcement to join as <b>${esc(name)}</b>.</div>
+    <div class="row"><input type="text" id="codeModalIn" placeholder="access code" autocomplete="off"/>
+      <button class="primary" id="codeModalBtn">Join</button></div>
+    <div class="msg" id="codeModalMsg"></div>`;
+  $("#close").onclick=closeModal;
+  const submit=()=>promptName(name,$("#codeModalIn").value,"#codeModalMsg");
+  $("#codeModalBtn").onclick=submit;
+  $("#codeModalIn").onkeydown=(e)=>{if(e.key==="Enter")submit();};
+  $("#modal").classList.add("open");
+  $("#codeModalIn").focus();
+}
+async function promptName(v,code,errTarget){
   const name=(v||"").trim(); if(!name) return;
   try{
     const j=await api("/register",{method:"POST",body:JSON.stringify({uuid:UUID,name,code:code||""})});
     NAME=j.name; localStorage.setItem(nameKey,NAME); renderIdbar(); loadBoard(); loadScoreboard();
-  }catch(e){ const m=$("#joinMsg"); if(m){m.textContent=e.message;m.className="sub bad";} else alert(e.message); }
+    if(errTarget) closeModal();
+  }catch(e){
+    const m=errTarget?$(errTarget):$("#joinMsg");
+    if(m){m.textContent=e.message;m.className=(errTarget?"msg":"sub")+" bad";} else alert(e.message);
+  }
 }
 async function removeMe(){
   if(!confirm("Remove your username and all your solves?")) return;
