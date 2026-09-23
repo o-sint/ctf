@@ -112,7 +112,7 @@
       <div class="grid" style="grid-template-columns:1fr 1fr 2fr">
         <div><label>id</label><input id="c_id" placeholder="p1-01"/></div>
         <div><label>category</label><input id="c_cat" placeholder="GEO"/></div>
-        <div><label>title</label><input id="c_title" placeholder="Cafe move"/></div>
+        <div><label>title</label><input id="c_title" placeholder="interesting title"/></div>
       </div>
       <label>❔ Question / Prompt (include any target URL)</label><textarea id="c_prompt" style="min-height:70px"></textarea>
       <div class="grid6">
@@ -267,8 +267,13 @@ $("#bulkExport").onclick=async()=>{
   }catch(e){ $("#bulkMsg").className="msg bad"; $("#bulkMsg").textContent=e.message; }
 };
 
+function genChallengeId(){
+  const n=String(Math.floor(Math.random()*100000)).padStart(5,"0");
+  return "c1-"+n;
+}
 $("#c_new").onclick=()=>{
-  ["c_id","c_cat","c_title","c_prompt","c_hint","c_answers","c_sol"].forEach(id=>$("#"+id).value="");
+  ["c_cat","c_title","c_prompt","c_hint","c_answers","c_sol"].forEach(id=>$("#"+id).value="");
+  $("#c_id").value=genChallengeId();
   $("#c_initial").value=100; $("#c_min").value=50; $("#c_decay").value=20;
   $("#c_att").value=10; $("#c_hold").value=30; $("#c_hcost").value=0;
   $("#c_msg").className="msg dim"; $("#c_msg").textContent="New challenge. Fill in and Save.";
