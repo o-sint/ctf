@@ -57,13 +57,25 @@ async function setCfg(env, key, value) {
   await env.DB.prepare("INSERT INTO config(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
     .bind(key, String(value)).run();
 }
-async function phaseOf(env, now) {
-  const start = Number(await cfg(env, "event_start", 0));
-  const end = Number(await cfg(env, "event_end", 0));
+// Read several config keys in ONE query. Missing keys are simply absent from the map;
+// use cfgGet() to apply the same default/null semantics as cfg().
+async function getConfig(env, keys) {
+  const marks = keys.map(() => "?").join(",");
+  const rows = (await env.DB.prepare(`SELECT key, value FROM config WHERE key IN (${marks})`).bind(...keys).all()).results;
+  const m = {};
+  rows.forEach((r) => (m[r.key] = r.value));
+  return m;
+}
+const cfgGet = (m, key, def = null) => (key in m ? m[key] : def);
+function phaseFrom(start, end, now) {
   if (!start || !end) return "unset";
   if (now < start) return "pre";
   if (now > end) return "post";
   return "live";
+}
+async function phaseOf(env, now) {
+  const c = await getConfig(env, ["event_start", "event_end"]);
+  return phaseFrom(Number(cfgGet(c, "event_start", 0)), Number(cfgGet(c, "event_end", 0)), now);
 }
 
 function currentValue(ch, scoredSolves) {
@@ -90,12 +102,16 @@ async function adminOK(req, env) {
 // ---------- public ----------
 async function getState(env) {
   const now = Date.now();
+  // one D1 query instead of six (this endpoint is polled by every open tab)
+  const c = await getConfig(env, ["event_name", "event_start", "event_end", "join_code"]);
+  const start = Number(cfgGet(c, "event_start", 0));
+  const end = Number(cfgGet(c, "event_end", 0));
   return json({
-    name: await cfg(env, "event_name", ""),
-    start: Number(await cfg(env, "event_start", 0)),
-    end: Number(await cfg(env, "event_end", 0)),
-    now, phase: await phaseOf(env, now),
-    code_required: !!(await joinCode(env)),
+    name: cfgGet(c, "event_name", ""),
+    start,
+    end,
+    now, phase: phaseFrom(start, end, now),
+    code_required: !!String(cfgGet(c, "join_code", "") || "").trim(),
   });
 }
 
