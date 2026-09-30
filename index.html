@@ -50,6 +50,9 @@
 
   h2{font-family:var(--mono);font-size:24px;color:var(--acc);text-transform:none;letter-spacing:1px;
     margin:26px 0 10px;font-weight:600}
+  summary{cursor:pointer;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary h2{margin:26px 0 10px}
   table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   th,td{padding:10px 12px;text-align:left;font-size:14px}
   th{color:var(--dim);font-family:var(--mono);font-weight:600;font-size:12px;background:var(--panel2)}
@@ -119,11 +122,13 @@
     <div class="sbLegend row" id="sbLegend" style="margin-top:6px"></div>
   </div>
 
-  <h2>Leaderboard</h2>
-  <div id="boardWrap" class="boardGrid">
-    <table id="board1"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
-    <table id="board2"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
-  </div>
+  <details id="lbDetails" open>
+    <summary><h2>Leaderboard</h2></summary>
+    <div id="boardWrap" class="boardGrid">
+      <table id="board1"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
+      <table id="board2"><thead><tr><th class="rank">#</th><th>Player</th><th class="pts">Points</th></tr></thead><tbody></tbody></table>
+    </div>
+  </details>
 
   <h2>Challenges<span id="chTotal"></span></h2>
   <div id="chArea"><div class="sub" id="chNote">loading…</div><div class="catgrid" id="cats"></div></div>
