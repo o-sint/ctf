@@ -1,15 +1,22 @@
 // OSINT CTF API — Cloudflare Worker (module syntax)
-// Bindings: env.DB (D1), env.BOOTSTRAP_KEY (secret, admin-token recovery)
+// Bindings : env.DB (D1)
+// Secrets  : BOOTSTRAP_KEY (optional; admin-token recovery — delete it after first run)
+// Vars     : MAX_USERS (default 300), ALLOWED_ORIGIN (optional; only if the API is called cross-origin)
 // NOTE: answers are stored as editable plaintext on the challenge row. They are
 // returned ONLY by GET /api/admin/challenges (bearer-token protected) and never
 // to any player endpoint. The answer key is therefore as secret as the admin token.
+// The site is same-origin (Worker route ctf.<domain>/api/*), so CORS is off unless ALLOWED_ORIGIN is set.
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Bootstrap-Key",
-  "Access-Control-Max-Age": "86400",
-};
+const MAX_PUBLIC_BODY = 16 * 1024;
+const MAX_ADMIN_BODY = 1024 * 1024;
+const PLAYER_ID_RE = /^[A-Za-z0-9._-]{8,64}$/;        // UUIDs, plus ids minted by very old browsers (keeps existing players working)
+const ID_RE = /^[^\u0000-\u001f\u007f\/\\]{1,64}$/;   // challenge ids: anything except control chars and slashes
+const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._-]{1,23}$/; // ASCII only: blocks homoglyph / bidi / zero-width spoofing; first char alnum also blocks CSV formula injection
+const RESERVED = new Set(["admin", "administrator", "root", "instructor", "moderator", "system"]);
+const NAME_MSG = "name must be 2-24 chars: letters, numbers, space . _ -";
+const FAR_FUTURE = 4102444800000; // 2100-01-01
+const BIG = Number.MAX_SAFE_INTEGER;
+
 // Default per-category icons (tiny hand-authored SVGs as data URIs). Admins can override any
 // of these via /admin/category-icons; unknown categories fall back to _DEFAULT.
 const DEFAULT_ICONS = {
@@ -29,19 +36,42 @@ const DEFAULT_ICONS = {
   "_DEFAULT": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA3YTIgMiAwIDAgMSAyLTJoNGwyIDJoOGEyIDIgMCAwIDEgMiAydjhhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ6Ii8+PC9zdmc+",
 };
 
-const json = (o, s = 200) =>
-  new Response(JSON.stringify(o), { status: s, headers: { "Content-Type": "application/json", ...CORS } });
-const err = (msg, s = 400) => json({ error: msg }, s);
+// ---------- response helpers ----------
+const BASE_HEADERS = {
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+};
+const json = (o, s = 200, extra = {}) =>
+  new Response(JSON.stringify(o), { status: s, headers: { ...BASE_HEADERS, ...extra } });
+const err = (msg, s = 400, extra = {}) => json({ error: msg, ...extra }, s);
 
+// ---------- crypto / validation helpers ----------
 const enc = new TextEncoder();
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 async function sha256hex(str) { return hex(await crypto.subtle.digest("SHA-256", enc.encode(str))); }
+function safeEq(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+// constant-time comparison of two secrets (hash both so the lengths match)
+const secretEq = async (a, b) => safeEq(await sha256hex(String(a ?? "")), await sha256hex(String(b ?? "")));
+
+function clampInt(v, def, lo, hi) {
+  if (v === undefined || v === null || v === "") return def;
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : def;
+}
+const str = (v, max) => String(v ?? "").slice(0, max);
 
 // Answer normalization for matching. Keep predictable; use multiple accepted
 // answers for real variants. (Storage keeps the admin's original text; both
 // stored and submitted values are normalized only at compare time.)
 function normalize(s) {
-  return String(s ?? "")
+  return str(s, 512)
     .normalize("NFKC").trim().toLowerCase()
     .replace(/^flag\{(.*)\}$/i, "$1")
     .replace(/\s+/g, " ")
@@ -49,14 +79,31 @@ function normalize(s) {
 }
 const answersArray = (txt) => String(txt || "").split("\n").map((x) => x.trim()).filter(Boolean);
 
+function cleanName(raw, allowReserved = false) {
+  const n = String(raw ?? "").normalize("NFKC").trim().replace(/\s+/g, " ");
+  if (!NAME_RE.test(n)) return null;
+  if (!allowReserved && RESERVED.has(n.toLowerCase())) return null;
+  return n;
+}
+// player id: header (preferred) or legacy ?uuid= query param (kept so an older cached page keeps working)
+function playerId(req) {
+  const v = req.headers.get("X-Player-Id") || new URL(req.url).searchParams.get("uuid") || "";
+  return PLAYER_ID_RE.test(v) ? v : "";
+}
+function audit(req, action, extra = {}) {
+  console.log(JSON.stringify({ t: new Date().toISOString(), ip: req.headers.get("CF-Connecting-IP") || "", action, ...extra }));
+}
+// category icon: data:image/* URI or an https URL; anything else is refused instead of stored
+const iconOK = (v) => typeof v === "string" && v.length <= 20000 && (/^data:image\/(svg\+xml|png|jpe?g|gif|webp|x-icon)[;,]/i.test(v) || (/^https:\/\/\S+$/i.test(v) && v.length <= 2000));
+
+// ---------- config / phase ----------
 async function cfg(env, key, def = null) {
   const r = await env.DB.prepare("SELECT value FROM config WHERE key=?").bind(key).first();
   return r ? r.value : def;
 }
-async function setCfg(env, key, value) {
-  await env.DB.prepare("INSERT INTO config(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
-    .bind(key, String(value)).run();
-}
+const setCfgStmt = (env, key, value) =>
+  env.DB.prepare("INSERT INTO config(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(key, String(value));
+const setCfg = (env, key, value) => setCfgStmt(env, key, value).run();
 // Read several config keys in ONE query. Missing keys are simply absent from the map;
 // use cfgGet() to apply the same default/null semantics as cfg().
 async function getConfig(env, keys) {
@@ -78,25 +125,44 @@ async function phaseOf(env, now) {
   return phaseFrom(Number(cfgGet(c, "event_start", 0)), Number(cfgGet(c, "event_end", 0)), now);
 }
 
+// ---------- scoring ----------
 function currentValue(ch, scoredSolves) {
-  const v = Math.ceil(((ch.minimum - ch.initial) / (ch.decay * ch.decay)) * (scoredSolves * scoredSolves) + ch.initial);
+  const d = Math.max(1, ch.decay);
+  const v = Math.ceil(((ch.minimum - ch.initial) / (d * d)) * (scoredSolves * scoredSolves) + ch.initial);
   return Math.max(ch.minimum, v);
 }
 async function scoreMaps(env) {
-  const chs = (await env.DB.prepare("SELECT * FROM challenges WHERE active=1").all()).results;
-  const solves = (await env.DB.prepare("SELECT challenge_id, COUNT(*) n FROM solves WHERE scored=1 GROUP BY challenge_id").all()).results;
+  const [chs, solves] = (await env.DB.batch([
+    env.DB.prepare("SELECT * FROM challenges WHERE active=1"),
+    env.DB.prepare("SELECT challenge_id, COUNT(*) n FROM solves WHERE scored=1 GROUP BY challenge_id"),
+  ])).map((r) => r.results);
   const nBy = {}; solves.forEach((r) => (nBy[r.challenge_id] = r.n));
   const valBy = {}, chBy = {};
   for (const ch of chs) { chBy[ch.id] = ch; valBy[ch.id] = currentValue(ch, nBy[ch.id] || 0); }
   return { chBy, valBy, nBy };
 }
 
-async function adminOK(req, env) {
-  const m = (req.headers.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
-  if (!m) return false;
-  const stored = await cfg(env, "admin_token_hash");
-  if (!stored) return false;
-  return (await sha256hex(m[1])) === stored;
+async function getLeaderboard(env) {
+  const [chs, cnts, solves, hints, users] = (await env.DB.batch([
+    env.DB.prepare("SELECT id,initial,minimum,decay FROM challenges WHERE active=1"),
+    env.DB.prepare("SELECT challenge_id, COUNT(*) n FROM solves WHERE scored=1 GROUP BY challenge_id"),
+    env.DB.prepare("SELECT uuid, challenge_id, ts_ms FROM solves WHERE scored=1"),
+    env.DB.prepare("SELECT h.uuid, SUM(c.hint_cost) c FROM hint_unlocks h JOIN challenges c ON c.id=h.challenge_id GROUP BY h.uuid"),
+    env.DB.prepare("SELECT uuid, name FROM users"),
+  ])).map((r) => r.results);
+  const n = {}; cnts.forEach((r) => (n[r.challenge_id] = r.n));
+  const val = {}; chs.forEach((c) => (val[c.id] = currentValue(c, n[c.id] || 0)));
+  const score = {}, last = {}, cnt = {};
+  users.forEach((u) => { score[u.uuid] = 0; last[u.uuid] = 0; cnt[u.uuid] = 0; });
+  for (const s of solves) {
+    if (!(s.uuid in score) || !(s.challenge_id in val)) continue;
+    score[s.uuid] += val[s.challenge_id]; cnt[s.uuid]++;
+    if (s.ts_ms > last[s.uuid]) last[s.uuid] = s.ts_ms;
+  }
+  hints.forEach((h) => { if (h.uuid in score) score[h.uuid] -= h.c || 0; });
+  return users
+    .map((u) => ({ name: u.name, score: score[u.uuid], solves: cnt[u.uuid], last: last[u.uuid] }))
+    .sort((a, b) => b.score - a.score || (a.last || BIG) - (b.last || BIG) || a.name.localeCompare(b.name));
 }
 
 // ---------- public ----------
@@ -115,75 +181,75 @@ async function getState(env) {
   });
 }
 
-async function getLeaderboard(env) {
-  const { valBy } = await scoreMaps(env);
-  const solves = (await env.DB.prepare("SELECT uuid, challenge_id, ts_ms, scored FROM solves").all()).results;
-  const hints = (await env.DB.prepare("SELECT h.uuid, c.hint_cost FROM hint_unlocks h JOIN challenges c ON c.id=h.challenge_id").all()).results;
-  const users = (await env.DB.prepare("SELECT uuid, name FROM users").all()).results;
-  const score = {}, last = {}, cnt = {};
-  users.forEach((u) => { score[u.uuid] = 0; last[u.uuid] = 0; cnt[u.uuid] = 0; });
-  for (const s of solves) {
-    if (score[s.uuid] === undefined) continue;
-    if (s.scored) { score[s.uuid] += valBy[s.challenge_id] || 0; cnt[s.uuid]++; last[s.uuid] = Math.max(last[s.uuid], s.ts_ms); }
-  }
-  for (const h of hints) if (score[h.uuid] !== undefined) score[h.uuid] -= h.hint_cost || 0;
-  const board = users.map((u) => ({ name: u.name, score: score[u.uuid], solves: cnt[u.uuid], last: last[u.uuid] }))
-    .sort((a, b) => b.score - a.score || (a.last || Infinity) - (b.last || Infinity));
-  return board;
+async function getMe(req, env) {
+  const uuid = playerId(req);
+  if (!uuid) return err("bad player id");
+  const u = await env.DB.prepare("SELECT name FROM users WHERE uuid=?").bind(uuid).first();
+  // `registered:false` is what the page keys on (a bare 404 from an older Worker must never wipe a player's identity)
+  return u ? json({ name: u.name, registered: true }) : err("not registered", 404, { registered: false });
 }
 
 async function getTimeline(env) {
   const now = Date.now();
-  const phase = await phaseOf(env, now);
-  if (phase === "pre" || phase === "unset") return json({ phase, event: {}, solves: [] });
-  const { valBy } = await scoreMaps(env);
-  const solves = (await env.DB.prepare(
-    "SELECT u.name, s.challenge_id, s.ts_ms FROM solves s JOIN users u ON u.uuid=s.uuid WHERE s.scored=1 ORDER BY s.ts_ms"
-  ).all()).results;
-  return json({
+  const c = await getConfig(env, ["event_start", "event_end"]);
+  const start = Number(cfgGet(c, "event_start", 0)), end = Number(cfgGet(c, "event_end", 0));
+  const phase = phaseFrom(start, end, now);
+  if (phase === "pre" || phase === "unset") return { phase, event: {}, solves: [] };
+  const [{ valBy }, rows] = await Promise.all([
+    scoreMaps(env),
+    env.DB.prepare("SELECT u.name, s.challenge_id, s.ts_ms FROM solves s JOIN users u ON u.uuid=s.uuid WHERE s.scored=1 ORDER BY s.ts_ms").all(),
+  ]);
+  return {
     phase,
-    event: { start: Number(await cfg(env, "event_start", 0)), end: Number(await cfg(env, "event_end", 0)) },
-    solves: solves.map((s) => ({ name: s.name, ts_ms: s.ts_ms, points: valBy[s.challenge_id] || 0 })),
-  });
+    event: { start, end },
+    solves: rows.results.map((s) => ({ name: s.name, ts_ms: s.ts_ms, points: valBy[s.challenge_id] || 0 })),
+  };
 }
 
-async function iconOverrides(env) {
-  const raw = await cfg(env, "category_icons", null);
-  if (!raw) return {};
-  try { return JSON.parse(raw); } catch { return {}; }
-}
 function iconFor(category, overrides) {
   const key = String(category || "").toUpperCase();
   return overrides[key] || DEFAULT_ICONS[key] || DEFAULT_ICONS._DEFAULT;
 }
+const parseOverrides = (raw) => { try { return raw ? JSON.parse(raw) : {}; } catch { return {}; } };
+const iconOverrides = async (env) => parseOverrides(await cfg(env, "category_icons", null));
 
-async function getChallenges(env, uuid) {
+async function getChallenges(req, env) {
   const now = Date.now();
   const phase = await phaseOf(env, now);
   if (phase === "pre" || phase === "unset") return json({ phase, challenges: [], icons: {} });
-  const { chBy, valBy, nBy } = await scoreMaps(env);
-  const mine = { solves: {}, attempts: {}, hints: {} };
+  const uuid = playerId(req);
+  const stmts = [
+    env.DB.prepare("SELECT * FROM challenges WHERE active=1"),
+    env.DB.prepare("SELECT challenge_id, COUNT(*) n FROM solves WHERE scored=1 GROUP BY challenge_id"),
+    env.DB.prepare("SELECT value FROM config WHERE key='category_icons'"),
+  ];
   if (uuid) {
-    (await env.DB.prepare("SELECT challenge_id FROM solves WHERE uuid=?").bind(uuid).all()).results.forEach((r) => (mine.solves[r.challenge_id] = 1));
-    (await env.DB.prepare("SELECT challenge_id,count,last_ms FROM attempts WHERE uuid=?").bind(uuid).all()).results.forEach((r) => (mine.attempts[r.challenge_id] = r));
-    (await env.DB.prepare("SELECT challenge_id FROM hint_unlocks WHERE uuid=?").bind(uuid).all()).results.forEach((r) => (mine.hints[r.challenge_id] = 1));
+    stmts.push(
+      env.DB.prepare("SELECT challenge_id FROM solves WHERE uuid=?").bind(uuid),
+      env.DB.prepare("SELECT challenge_id,count,last_ms FROM attempts WHERE uuid=?").bind(uuid),
+      env.DB.prepare("SELECT challenge_id FROM hint_unlocks WHERE uuid=?").bind(uuid),
+    );
   }
-  const list = Object.values(chBy)
+  const res = (await env.DB.batch(stmts)).map((r) => r.results);
+  const nBy = {}; res[1].forEach((r) => (nBy[r.challenge_id] = r.n));
+  const overrides = parseOverrides(res[2][0] && res[2][0].value);
+  const solved = new Set((res[3] || []).map((r) => r.challenge_id));
+  const att = {}; (res[4] || []).forEach((r) => (att[r.challenge_id] = r));
+  const hinted = new Set((res[5] || []).map((r) => r.challenge_id));
+  const list = res[0]
     .sort((a, b) => a.category.localeCompare(b.category) || a.sort - b.sort || a.title.localeCompare(b.title))
     .map((ch) => {
-      const at = mine.attempts[ch.id];
-      const hintUnlocked = !!mine.hints[ch.id];
+      const at = att[ch.id];
       return { // NOTE: no `answers`/`solution` here — never sent to players
         id: ch.id, category: ch.category, title: ch.title, prompt: ch.prompt,
-        value: valBy[ch.id], solves: nBy[ch.id] || 0,
+        value: currentValue(ch, nBy[ch.id] || 0), solves: nBy[ch.id] || 0,
         has_hint: !!(ch.hint && ch.hint.trim()), hint_cost: ch.hint_cost,
-        hint: hintUnlocked ? ch.hint : null,
-        solved: !!mine.solves[ch.id],
+        hint: ch.hint && (hinted.has(ch.id) || phase === "post") ? ch.hint : null, // hints are free once the event is over
+        solved: solved.has(ch.id),
         attempts_left: Math.max(0, ch.attempts_max - (at ? at.count : 0)),
         holdoff_until: at ? at.last_ms + ch.holdoff_ms : 0,
       };
     });
-  const overrides = await iconOverrides(env);
   const icons = {};
   list.forEach((c) => { icons[c.category] = iconFor(c.category, overrides); });
   return json({ phase, challenges: list, icons });
@@ -193,10 +259,11 @@ async function joinCode(env) {
   return String((await cfg(env, "join_code", "")) || "").trim();
 }
 
-async function register(env, b) {
-  const uuid = String(b.uuid || "").slice(0, 64);
-  const name = String(b.name || "").trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 24);
-  if (!uuid || !name) return err("uuid and name required");
+async function register(env, bust, b) {
+  const uuid = String(b.uuid ?? "");
+  if (!PLAYER_ID_RE.test(uuid)) return err("bad player id");
+  const name = cleanName(b.name);
+  if (!name) return err(NAME_MSG);
   const lc = name.toLowerCase();
   const clash = await env.DB.prepare("SELECT uuid FROM users WHERE name_lc=? AND uuid<>?").bind(lc, uuid).first();
   if (clash) return err("username taken", 409);
@@ -204,30 +271,42 @@ async function register(env, b) {
   if (!exists) {
     // access code only gates first-time join, not renaming an already-registered player
     const required = await joinCode(env);
-    if (required && String(b.code || "").trim().toLowerCase() !== required.toLowerCase()) {
+    if (required && !(await secretEq(String(b.code ?? "").trim().toLowerCase(), required.toLowerCase()))) {
       return err("wrong access code", 403);
     }
+    const { n } = await env.DB.prepare("SELECT COUNT(*) n FROM users").first();
+    if (n >= (Number(env.MAX_USERS) || 300)) return err("event is full", 403);
   }
-  if (exists) await env.DB.prepare("UPDATE users SET name=?, name_lc=? WHERE uuid=?").bind(name, lc, uuid).run();
-  else await env.DB.prepare("INSERT INTO users(uuid,name,name_lc,created_ms) VALUES(?,?,?,?)").bind(uuid, name, lc, Date.now()).run();
+  try {
+    if (exists) await env.DB.prepare("UPDATE users SET name=?, name_lc=? WHERE uuid=?").bind(name, lc, uuid).run();
+    else await env.DB.prepare("INSERT INTO users(uuid,name,name_lc,created_ms) VALUES(?,?,?,?)").bind(uuid, name, lc, Date.now()).run();
+  } catch (e) {
+    if (/UNIQUE/i.test(String(e.message))) return err("username taken", 409); // lost a race with another player
+    throw e;
+  }
+  await bust();
   return json({ ok: true, name });
 }
 
-async function unregister(env, b) {
-  const uuid = String(b.uuid || "");
-  if (!uuid) return err("uuid required");
-  await env.DB.batch([
+const deleteUser = (env, uuid) =>
+  env.DB.batch([
     env.DB.prepare("DELETE FROM solves WHERE uuid=?").bind(uuid),
     env.DB.prepare("DELETE FROM attempts WHERE uuid=?").bind(uuid),
     env.DB.prepare("DELETE FROM hint_unlocks WHERE uuid=?").bind(uuid),
     env.DB.prepare("DELETE FROM users WHERE uuid=?").bind(uuid),
   ]);
+
+async function unregister(env, bust, b) {
+  const uuid = String(b.uuid ?? "");
+  if (!PLAYER_ID_RE.test(uuid)) return err("bad player id");
+  await deleteUser(env, uuid);
+  await bust();
   return json({ ok: true });
 }
 
-async function submit(env, b) {
-  const uuid = String(b.uuid || ""), cid = String(b.challenge_id || ""), answer = b.answer;
-  if (!uuid || !cid) return err("uuid and challenge_id required");
+async function submit(env, bust, b) {
+  const uuid = String(b.uuid ?? ""), cid = String(b.challenge_id ?? "");
+  if (!PLAYER_ID_RE.test(uuid) || !ID_RE.test(cid)) return err("bad request");
   if (!(await env.DB.prepare("SELECT uuid FROM users WHERE uuid=?").bind(uuid).first())) return err("register a username first", 403);
   const ch = await env.DB.prepare("SELECT * FROM challenges WHERE id=? AND active=1").bind(cid).first();
   if (!ch) return err("no such challenge", 404);
@@ -236,31 +315,41 @@ async function submit(env, b) {
   if (phase === "pre" || phase === "unset") return err("event not started", 403);
   if (await env.DB.prepare("SELECT 1 FROM solves WHERE uuid=? AND challenge_id=?").bind(uuid, cid).first()) return err("already solved", 409);
 
-  let at = await env.DB.prepare("SELECT count,last_ms FROM attempts WHERE uuid=? AND challenge_id=?").bind(uuid, cid).first();
-  at = at || { count: 0, last_ms: 0 };
-  if (at.count >= ch.attempts_max) return err("out of attempts", 429);
-  if (at.last_ms + ch.holdoff_ms > now) return json({ correct: false, holdoff_until: at.last_ms + ch.holdoff_ms, attempts_left: ch.attempts_max - at.count }, 429);
+  // Atomic attempt claim: the UPDATE itself enforces max-attempts and the cooldown, so parallel
+  // requests cannot bypass either (only one statement can satisfy the WHERE clause).
+  await env.DB.prepare("INSERT OR IGNORE INTO attempts(uuid,challenge_id,count,last_ms) VALUES(?,?,0,0)").bind(uuid, cid).run();
+  const claim = await env.DB.prepare(
+    "UPDATE attempts SET count=count+1, last_ms=? WHERE uuid=? AND challenge_id=? AND count<? AND last_ms+?<=? RETURNING count"
+  ).bind(now, uuid, cid, ch.attempts_max, ch.holdoff_ms, now).first();
+  if (!claim) {
+    const at = (await env.DB.prepare("SELECT count,last_ms FROM attempts WHERE uuid=? AND challenge_id=?").bind(uuid, cid).first()) || { count: 0, last_ms: 0 };
+    if (at.count >= ch.attempts_max) return err("out of attempts", 429, { attempts_left: 0 });
+    return err("cooling down", 429, { correct: false, holdoff_until: at.last_ms + ch.holdoff_ms, attempts_left: ch.attempts_max - at.count });
+  }
 
   const accepted = new Set(answersArray(ch.answers).map(normalize));
-  const match = accepted.has(normalize(answer));
-
-  if (!match) {
-    await env.DB.prepare("INSERT INTO attempts(uuid,challenge_id,count,last_ms) VALUES(?,?,1,?) ON CONFLICT(uuid,challenge_id) DO UPDATE SET count=count+1, last_ms=?")
-      .bind(uuid, cid, now, now).run();
-    return json({ correct: false, attempts_left: ch.attempts_max - (at.count + 1), holdoff_until: now + ch.holdoff_ms });
+  if (!accepted.has(normalize(b.answer))) {
+    return json({ correct: false, attempts_left: ch.attempts_max - claim.count, holdoff_until: now + ch.holdoff_ms });
   }
   const scored = phase === "live" ? 1 : 0;
-  await env.DB.prepare("INSERT INTO solves(uuid,challenge_id,ts_ms,scored) VALUES(?,?,?,?)").bind(uuid, cid, now, scored).run();
+  const ins = await env.DB.prepare("INSERT OR IGNORE INTO solves(uuid,challenge_id,ts_ms,scored) VALUES(?,?,?,?)").bind(uuid, cid, now, scored).run();
+  if (!ins.meta.changes) return err("already solved", 409);
+  await bust();
   const { valBy } = await scoreMaps(env);
   return json({ correct: true, scored: !!scored, points: scored ? (valBy[cid] || ch.minimum) : 0 });
 }
 
-async function buyHint(env, b) {
-  const uuid = String(b.uuid || ""), cid = String(b.challenge_id || "");
+async function buyHint(env, bust, b) {
+  const uuid = String(b.uuid ?? ""), cid = String(b.challenge_id ?? "");
+  if (!PLAYER_ID_RE.test(uuid) || !ID_RE.test(cid)) return err("bad request");
+  const phase = await phaseOf(env, Date.now());
+  if (phase === "pre" || phase === "unset") return err("event not started", 403); // ids are guessable, so hints must not leak before the start
   if (!(await env.DB.prepare("SELECT uuid FROM users WHERE uuid=?").bind(uuid).first())) return err("register a username first", 403);
   const ch = await env.DB.prepare("SELECT hint,hint_cost FROM challenges WHERE id=? AND active=1").bind(cid).first();
   if (!ch || !ch.hint) return err("no hint", 404);
+  if (phase === "post") return json({ hint: ch.hint, cost: 0 }); // free after the event; nothing recorded, so no score change
   await env.DB.prepare("INSERT OR IGNORE INTO hint_unlocks(uuid,challenge_id) VALUES(?,?)").bind(uuid, cid).run();
+  await bust();
   return json({ hint: ch.hint, cost: ch.hint_cost });
 }
 
@@ -271,40 +360,69 @@ async function getSolutions(env) {
 }
 
 // ---------- admin ----------
-async function adminChallenges(env, body) {
+async function adminOK(req, env) {
+  const m = (req.headers.get("Authorization") || "").match(/^Bearer\s+(\S{1,256})$/i); // no minimum length here: tokens set before the 20-char rule keep working
+  if (!m) return false;
+  const row = await env.DB.prepare("SELECT value FROM config WHERE key='admin_token_hash'").first();
+  return !!row && safeEq(await sha256hex(m[1]), row.value);
+}
+
+function validateChallenge(c) {
+  if (!c || typeof c !== "object" || Array.isArray(c)) return { error: "not an object" };
+  const id = String(c.id ?? "");
+  if (!ID_RE.test(id)) return { error: "bad id (1-64 chars, no slashes/control chars)" };
+  const category = str(c.category, 60).trim(), title = str(c.title, 200).trim();
+  if (!category || !title) return { error: "category and title required" };
+  const list = (Array.isArray(c.answers) ? c.answers : [c.answers]).flatMap((a) => String(a ?? "").split("\n"));
+  const answers = [...new Set(list.map((a) => str(a, 512).trim()).filter(Boolean))].slice(0, 50);
+  if (!answers.length) return { error: "at least one answer required" };
+  const initial = clampInt(c.initial, 100, 1, 100000);
+  return {
+    row: {
+      id, category, title, prompt: str(c.prompt, 8000),
+      initial, minimum: Math.min(initial, clampInt(c.minimum, 50, 1, 100000)),
+      decay: clampInt(c.decay, 20, 1, 10000),
+      attempts_max: clampInt(c.attempts_max, 10, 1, 1000),
+      holdoff_ms: clampInt(c.holdoff_ms, 30000, 0, 3600000),
+      hint: str(c.hint, 2000).trim() || null,
+      hint_cost: clampInt(c.hint_cost, 0, 0, 100000),
+      answers: answers.join("\n"), solution: str(c.solution, 4000) || null,
+      sort: clampInt(c.sort, 0, -100000, 100000),
+    },
+  };
+}
+
+async function adminChallenges(env, bust, body) {
   const items = Array.isArray(body) ? body : body.challenges;
-  if (!Array.isArray(items)) return err("expected an array of challenges");
-  let n = 0; const skipped = [];
+  if (!Array.isArray(items) || items.length > 500) return err("expected an array of up to 500 challenges");
+  const stmts = [], skipped = [];
   for (const c of items) {
-    if (!c.id || !c.category || !c.title) { skipped.push(c.id || "(no id)"); continue; }
-    // answers accepted as array or newline string
-    const ansList = Array.isArray(c.answers) ? c.answers : answersArray(c.answers);
-    const answers = ansList.map((a) => String(a).trim()).filter(Boolean);
-    if (answers.length === 0) { skipped.push(c.id + " (no answers)"); continue; }
-    await env.DB.prepare(
+    const v = validateChallenge(c);
+    if (v.error) { skipped.push(`${str(c && c.id, 64) || "(no id)"}: ${v.error}`); continue; }
+    const r = v.row;
+    stmts.push(env.DB.prepare(
       `INSERT INTO challenges(id,category,title,prompt,initial,minimum,decay,attempts_max,holdoff_ms,hint,hint_cost,answers,solution,sort,active)
        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)
        ON CONFLICT(id) DO UPDATE SET category=excluded.category,title=excluded.title,prompt=excluded.prompt,
          initial=excluded.initial,minimum=excluded.minimum,decay=excluded.decay,attempts_max=excluded.attempts_max,
          holdoff_ms=excluded.holdoff_ms,hint=excluded.hint,hint_cost=excluded.hint_cost,answers=excluded.answers,
          solution=excluded.solution,sort=excluded.sort,active=1`
-    ).bind(
-      c.id, c.category, c.title, c.prompt || "",
-      c.initial ?? 100, c.minimum ?? 50, c.decay ?? 20, c.attempts_max ?? 10, c.holdoff_ms ?? 30000,
-      c.hint || null, c.hint_cost ?? 0, answers.join("\n"), c.solution || null, c.sort ?? 0
-    ).run();
-    n++;
+    ).bind(r.id, r.category, r.title, r.prompt, r.initial, r.minimum, r.decay, r.attempts_max, r.holdoff_ms, r.hint, r.hint_cost, r.answers, r.solution, r.sort));
   }
-  return json({ upserted: n, skipped });
+  for (let i = 0; i < stmts.length; i += 25) await env.DB.batch(stmts.slice(i, i + 25));
+  await bust();
+  return json({ upserted: stmts.length, skipped });
 }
 
-async function adminDeleteChallenge(env, id) {
+async function adminDeleteChallenge(env, bust, id) {
+  if (!ID_RE.test(id)) return err("bad id");
   await env.DB.batch([
     env.DB.prepare("DELETE FROM solves WHERE challenge_id=?").bind(id),
     env.DB.prepare("DELETE FROM attempts WHERE challenge_id=?").bind(id),
     env.DB.prepare("DELETE FROM hint_unlocks WHERE challenge_id=?").bind(id),
     env.DB.prepare("DELETE FROM challenges WHERE id=?").bind(id),
   ]);
+  await bust();
   return json({ ok: true });
 }
 
@@ -320,44 +438,57 @@ async function adminUsers(env) {
   return json({ users: rows });
 }
 
-async function adminReset(env) {
+async function adminReset(env, bust) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM solves"),
     env.DB.prepare("DELETE FROM attempts"),
     env.DB.prepare("DELETE FROM hint_unlocks"),
     env.DB.prepare("DELETE FROM users"),
   ]);
+  await bust();
   return json({ ok: true });
 }
 
-async function adminEvent(env, b) {
-  if (b.name != null) await setCfg(env, "event_name", b.name);
-  if (b.start != null) await setCfg(env, "event_start", Number(b.start));
-  if (b.end != null) await setCfg(env, "event_end", Number(b.end));
-  return getState(env);
+async function adminEvent(env, bust, b) {
+  const c = await getConfig(env, ["event_name", "event_start", "event_end"]);
+  const name = b.name != null ? str(b.name, 80).trim() : cfgGet(c, "event_name", "");
+  const start = b.start != null ? clampInt(b.start, 0, 0, FAR_FUTURE) : Number(cfgGet(c, "event_start", 0));
+  const end = b.end != null ? clampInt(b.end, 0, 0, FAR_FUTURE) : Number(cfgGet(c, "event_end", 0));
+  if (start && end && end <= start) return err("end must be after start");
+  await env.DB.batch([setCfgStmt(env, "event_name", name), setCfgStmt(env, "event_start", start), setCfgStmt(env, "event_end", end)]);
+  await bust();
+  return await getState(env);
 }
 
-async function adminRenameUser(env, b) {
-  const name = String(b.name || "").trim().replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 24);
-  if (!b.uuid || !name) return err("uuid and name required");
+async function adminRenameUser(env, bust, b) {
+  const uuid = String(b.uuid ?? "");
+  const name = cleanName(b.name, true); // admin may use reserved names
+  if (!PLAYER_ID_RE.test(uuid) || !name) return err(NAME_MSG);
   const lc = name.toLowerCase();
-  if (await env.DB.prepare("SELECT uuid FROM users WHERE name_lc=? AND uuid<>?").bind(lc, b.uuid).first()) return err("username taken", 409);
-  await env.DB.prepare("UPDATE users SET name=?, name_lc=? WHERE uuid=?").bind(name, lc, b.uuid).run();
+  if (await env.DB.prepare("SELECT uuid FROM users WHERE name_lc=? AND uuid<>?").bind(lc, uuid).first()) return err("username taken", 409);
+  try {
+    await env.DB.prepare("UPDATE users SET name=?, name_lc=? WHERE uuid=?").bind(name, lc, uuid).run();
+  } catch (e) {
+    if (/UNIQUE/i.test(String(e.message))) return err("username taken", 409);
+    throw e;
+  }
+  await bust();
   return json({ ok: true });
 }
 
 async function adminExport(env) {
   const board = await getLeaderboard(env);
   const { valBy } = await scoreMaps(env);
+  const c = await getConfig(env, ["event_name", "event_start", "event_end"]);
   const solves = (await env.DB.prepare(
     "SELECT u.name, s.challenge_id, s.ts_ms, s.scored FROM solves s JOIN users u ON u.uuid=s.uuid ORDER BY s.ts_ms"
   ).all()).results;
   return json({
     generated: new Date().toISOString(),
     event: {
-      name: await cfg(env, "event_name", ""),
-      start: Number(await cfg(env, "event_start", 0)),
-      end: Number(await cfg(env, "event_end", 0)),
+      name: cfgGet(c, "event_name", ""),
+      start: Number(cfgGet(c, "event_start", 0)),
+      end: Number(cfgGet(c, "event_end", 0)),
     },
     leaderboard: board.map((b, i) => ({
       rank: i + 1, name: b.name, score: b.score, solves: b.solves,
@@ -371,75 +502,127 @@ async function adminExport(env) {
   });
 }
 
-// ---------- router ----------
-export default {
-  async fetch(req, env) {
-    if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
-    const url = new URL(req.url);
-    const p = url.pathname.replace(/^\/api/, "");
-    let body = {};
-    if (req.method === "POST") { try { body = await req.json(); } catch { body = {}; } }
+async function admin(req, env, bust, p, body) {
+  const m = req.method;
+  if (m === "POST" && p === "/admin/rotate-token") { // valid current token OR bootstrap key
+    const viaBootstrap = !!env.BOOTSTRAP_KEY && (await secretEq(req.headers.get("X-Bootstrap-Key"), env.BOOTSTRAP_KEY));
+    if (!viaBootstrap && !(await adminOK(req, env))) { audit(req, "admin_auth_fail", { path: p }); return err("unauthorized", 401); }
+    const nt = String(body.new_token ?? "");
+    if (nt.length < 20 || nt.length > 256) return err("new_token must be 20-256 chars");
+    await setCfg(env, "admin_token_hash", await sha256hex(nt));
+    audit(req, "rotate_token", { via: viaBootstrap ? "bootstrap" : "token" });
+    return json({ ok: true });
+  }
+  if (!(await adminOK(req, env))) { audit(req, "admin_auth_fail", { path: p }); return err("unauthorized", 401); }
+  audit(req, "admin", { m, path: p });
 
-    try {
-      if (req.method === "GET" && p === "/state") return await getState(env);
-      if (req.method === "GET" && p === "/leaderboard") return json({ board: await getLeaderboard(env) });
-      if (req.method === "GET" && p === "/timeline") return await getTimeline(env);
-      if (req.method === "GET" && p === "/challenges") return await getChallenges(env, url.searchParams.get("uuid"));
-      if (req.method === "GET" && p === "/solutions") return await getSolutions(env);
-      if (req.method === "POST" && p === "/register") return await register(env, body);
-      if (req.method === "POST" && p === "/rename") return await register(env, body);
-      if (req.method === "POST" && p === "/unregister") return await unregister(env, body);
-      if (req.method === "POST" && p === "/submit") return await submit(env, body);
-      if (req.method === "POST" && p === "/hint") return await buyHint(env, body);
-
-      if (req.method === "POST" && p === "/admin/rotate-token") {
-        const boot = req.headers.get("X-Bootstrap-Key");
-        const ok = (await adminOK(req, env)) || (env.BOOTSTRAP_KEY && boot === env.BOOTSTRAP_KEY);
-        if (!ok) return err("unauthorized", 401);
-        if (!body.new_token || String(body.new_token).length < 12) return err("new_token must be >= 12 chars");
-        await setCfg(env, "admin_token_hash", await sha256hex(String(body.new_token)));
-        return json({ ok: true });
-      }
-
-      if (p.startsWith("/admin/")) {
-        if (!(await adminOK(req, env))) return err("unauthorized", 401);
-        if (req.method === "POST" && p === "/admin/challenges") return await adminChallenges(env, body);
-        if (req.method === "GET" && p === "/admin/challenges") return await adminListChallenges(env);
-        if (req.method === "DELETE" && p.startsWith("/admin/challenge/")) return await adminDeleteChallenge(env, decodeURIComponent(p.split("/").pop()));
-        if (req.method === "GET" && p === "/admin/users") return await adminUsers(env);
-        if (req.method === "POST" && p === "/admin/user/rename") return await adminRenameUser(env, body);
-        if (req.method === "DELETE" && p.startsWith("/admin/user/")) return await unregister(env, { uuid: decodeURIComponent(p.split("/").pop()) });
-        if (req.method === "POST" && p === "/admin/reset") return await adminReset(env);
-        if (req.method === "POST" && p === "/admin/event") return await adminEvent(env, body);
-        if (req.method === "GET" && p === "/admin/export") return await adminExport(env);
-        if (req.method === "GET" && p === "/admin/category-icons") {
-          return json({ overrides: await iconOverrides(env), defaults: DEFAULT_ICONS });
-        }
-        if (req.method === "POST" && p === "/admin/category-icons") {
-          const patch = body.icons && typeof body.icons === "object" ? body.icons : {};
-          const cur = await iconOverrides(env);
-          for (const [cat, dataUri] of Object.entries(patch)) {
-            const key = String(cat || "").toUpperCase();
-            if (!key) continue;
-            if (!dataUri) delete cur[key]; // empty value clears the override, reverting to default
-            else cur[key] = String(dataUri).slice(0, 20000);
-          }
-          await setCfg(env, "category_icons", JSON.stringify(cur));
-          return json({ ok: true, overrides: cur });
-        }
-        if (req.method === "GET" && p === "/admin/join-code") {
-          return json({ code: await joinCode(env) });
-        }
-        if (req.method === "POST" && p === "/admin/join-code") {
-          const code = String(body.code || "").trim().slice(0, 64);
-          await setCfg(env, "join_code", code);
-          return json({ ok: true, code });
-        }
-        return err("not found", 404);
-      }
-      return err("not found", 404);
-    } catch (e) {
-      return err("server error: " + e.message, 500);
+  if (m === "POST" && p === "/admin/challenges") return await adminChallenges(env, bust, body);
+  if (m === "GET" && p === "/admin/challenges") return await adminListChallenges(env);
+  if (m === "DELETE" && p.startsWith("/admin/challenge/")) return await adminDeleteChallenge(env, bust, decodeURIComponent(p.slice("/admin/challenge/".length)));
+  if (m === "GET" && p === "/admin/users") return await adminUsers(env);
+  if (m === "POST" && p === "/admin/user/rename") return await adminRenameUser(env, bust, body);
+  if (m === "DELETE" && p.startsWith("/admin/user/")) return await unregister(env, bust, { uuid: decodeURIComponent(p.slice("/admin/user/".length)) });
+  if (m === "POST" && p === "/admin/reset") return await adminReset(env, bust);
+  if (m === "POST" && p === "/admin/event") return await adminEvent(env, bust, body);
+  if (m === "GET" && p === "/admin/export") return await adminExport(env);
+  if (m === "GET" && p === "/admin/category-icons") {
+    return json({ overrides: await iconOverrides(env), defaults: DEFAULT_ICONS });
+  }
+  if (m === "POST" && p === "/admin/category-icons") {
+    const patch = body.icons && typeof body.icons === "object" ? body.icons : {};
+    const cur = await iconOverrides(env);
+    for (const [cat, dataUri] of Object.entries(patch)) {
+      const key = String(cat || "").toUpperCase();
+      if (!key) continue;
+      if (!dataUri) delete cur[key]; // empty value clears the override, reverting to default
+      else if (iconOK(String(dataUri))) cur[key] = String(dataUri);
+      else return err("icon must be a data:image/... URI (or an https URL), max 20 KB");
     }
+    await setCfg(env, "category_icons", JSON.stringify(cur));
+    await bust(); // the timeline/board don't carry icons, but keep the rule simple: any admin write busts the cache
+    return json({ ok: true, overrides: cur });
+  }
+  if (m === "GET" && p === "/admin/join-code") {
+    return json({ code: await joinCode(env) });
+  }
+  if (m === "POST" && p === "/admin/join-code") {
+    const code = String(body.code ?? "").trim().slice(0, 64);
+    await setCfg(env, "join_code", code);
+    return json({ ok: true, code });
+  }
+  return err("not found", 404);
+}
+
+// ---------- router ----------
+// Edge cache (Cache API) for the two public, all-player endpoints. Busted on any change so a
+// join / solve / rename shows up immediately; browsers always get no-store so a refetch is never stale.
+const cacheKey = (req, path) => new Request(new URL("/api" + path, req.url).href);
+const CACHED = ["/leaderboard", "/timeline"];
+
+async function cachedJson(req, ctx, path, produce) {
+  const key = cacheKey(req, path);
+  const hit = await caches.default.match(key);
+  if (hit) return new Response(hit.body, { status: 200, headers: { ...BASE_HEADERS, "X-Edge-Cache": "hit" } });
+  const data = JSON.stringify(await produce());
+  ctx.waitUntil(caches.default.put(key, new Response(data, { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=5" } })));
+  return new Response(data, { status: 200, headers: { ...BASE_HEADERS, "X-Edge-Cache": "miss" } });
+}
+
+async function handle(req, env, ctx) {
+  const p = new URL(req.url).pathname.replace(/^\/api/, "") || "/";
+  const m = req.method;
+  const bust = () => Promise.all(CACHED.map((x) => caches.default.delete(cacheKey(req, x))));
+
+  let body = {};
+  if (m === "POST") {
+    if (!/^application\/json/i.test(req.headers.get("Content-Type") || "")) return err("content-type must be application/json", 415);
+    const max = p.startsWith("/admin/") ? MAX_ADMIN_BODY : MAX_PUBLIC_BODY;
+    if (Number(req.headers.get("Content-Length") || 0) > max) return err("payload too large", 413);
+    const txt = await req.text();
+    if (txt.length > max) return err("payload too large", 413);
+    try { body = txt ? JSON.parse(txt) : {}; } catch { return err("invalid JSON"); }
+    if (body === null || typeof body !== "object") body = {};
+  }
+
+  if (m === "GET") {
+    if (p === "/state") return await getState(env);
+    if (p === "/me") return await getMe(req, env);
+    if (p === "/leaderboard") return await cachedJson(req, ctx, p, async () => ({ board: await getLeaderboard(env) }));
+    if (p === "/timeline") return await cachedJson(req, ctx, p, () => getTimeline(env));
+    if (p === "/challenges") return await getChallenges(req, env);
+    if (p === "/solutions") return await getSolutions(env);
+  }
+  if (m === "POST") {
+    if (p === "/register" || p === "/rename") return await register(env, bust, body);
+    if (p === "/unregister") return await unregister(env, bust, body);
+    if (p === "/submit") return await submit(env, bust, body);
+    if (p === "/hint") return await buyHint(env, bust, body);
+  }
+  if (p.startsWith("/admin/")) return await admin(req, env, bust, p, body);
+  return err("not found", 404);
+}
+
+export default {
+  async fetch(req, env, ctx) {
+    // CORS is off (same-origin) unless ALLOWED_ORIGIN is set and matches the caller
+    const origin = req.headers.get("Origin");
+    const cors = env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN ? {
+      "Access-Control-Allow-Origin": origin, "Vary": "Origin",
+      "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Bootstrap-Key,X-Player-Id",
+      "Access-Control-Max-Age": "86400",
+    } : null;
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors || {} });
+    let res;
+    try {
+      res = await handle(req, env, ctx);
+    } catch (e) {
+      console.error("unhandled", e && e.stack ? e.stack : String(e)); // detail stays in logs, never in the response
+      res = err("server error", 500);
+    }
+    if (!cors) return res;
+    const r = new Response(res.body, res);
+    Object.entries(cors).forEach(([k, v]) => r.headers.set(k, v));
+    return r;
   },
 };
