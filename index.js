@@ -138,6 +138,7 @@ function tick(){
 async function loadBoard(){
   const j=await api("/leaderboard");
   loadScoreboard(j).catch(()=>{}); // reuse this response for the chart instead of fetching /leaderboard a second time
+  $("#lbTotal").textContent=j.board.length?" ("+j.board.length+")":"";
   const sig=NAME+"|"+JSON.stringify(j.board);
   if(sig===BOARD_SIG) return; BOARD_SIG=sig; // nothing changed: skip the table rebuild
   const tb1=$("#board1 tbody"), tb2=$("#board2 tbody");
