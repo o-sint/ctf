@@ -211,13 +211,24 @@ function editChallenge(c){
   window.scrollTo({top:$("#c_id").getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"});
 }
 $("#chReload").onclick=loadChallenges;
-$("#chClear").onclick=async()=>{
-  const n=($("#chCount").textContent||"").trim()||"all challenges";
-  const w=prompt("This deletes "+n+" AND every solve, attempt and hint unlock on them.\nPlayers stay registered. Tip: use \"Download current challenges (backup)\" first.\n\nType DELETE ALL to confirm:");
-  if(w!=="DELETE ALL") return;
-  try{ const j=await api("/admin/challenges/clear",{method:"POST"}); await loadChallenges(); alert("Removed "+j.removed+" challenge"+(j.removed===1?"":"s")+"."); }
-  catch(e){ alert(e.message); }
-};
+// In-page "type the word" confirmation (native prompt() can be suppressed by the browser and gave no feedback on a typo)
+function armConfirm(o){
+  const box=$(o.box), inp=$(o.input), go=$(o.go);
+  const show=(v)=>{ box.style.display=v?"":"none"; if(v){ inp.value=""; go.disabled=true; inp.focus(); } };
+  $(o.btn).onclick=()=>show(box.style.display==="none");
+  $(o.cancel).onclick=()=>show(false);
+  inp.oninput=()=>{ go.disabled=inp.value.trim().toUpperCase()!==o.word; };
+  inp.onkeydown=(e)=>{ if(e.key==="Enter"&&!go.disabled) go.click(); if(e.key==="Escape") show(false); };
+  go.onclick=async()=>{
+    if(inp.value.trim().toUpperCase()!==o.word) return;
+    go.disabled=true;
+    try{ await o.run(); show(false); }
+    catch(e){ const m=$(o.msg); m.className="msg bad"; m.textContent=e.message; go.disabled=false; }
+  };
+}
+armConfirm({btn:"#chClear",box:"#chClearBox",input:"#chClearIn",go:"#chClearGo",cancel:"#chClearCancel",msg:"#chClearMsg",word:"DELETE ALL",
+  run:async()=>{ const j=await api("/admin/challenges/clear",{method:"POST"}); await loadChallenges();
+    const m=$("#chClearMsg"); m.className="msg ok"; m.textContent="Removed "+j.removed+" challenge"+(j.removed===1?"":"s")+"."; }});
 
 async function loadUsers(){
   const j=await api("/admin/users");
@@ -240,9 +251,8 @@ async function loadUsers(){
 }
 $("#uReload").onclick=loadUsers;
 
-$("#reset").onclick=async()=>{ if(prompt("This removes ALL players, solves, attempts and hint unlocks.\nType RESET to confirm:")!=="RESET")return;
-  try{ await api("/admin/reset",{method:"POST"}); $("#dzMsg").className="msg ok"; $("#dzMsg").textContent="Scoreboard reset."; loadUsers(); }
-  catch(e){ $("#dzMsg").className="msg bad"; $("#dzMsg").textContent=e.message; } };
+armConfirm({btn:"#reset",box:"#resetBox",input:"#resetIn",go:"#resetGo",cancel:"#resetCancel",msg:"#dzMsg",word:"RESET",
+  run:async()=>{ await api("/admin/reset",{method:"POST"}); const m=$("#dzMsg"); m.className="msg ok"; m.textContent="Scoreboard reset."; loadUsers(); }});
 $("#rot").onclick=async()=>{ const nt=$("#newTok").value.trim(); if(nt.length<20){$("#dzMsg").className="msg bad";$("#dzMsg").textContent="Need >= 20 chars (use Generate).";return;}
   try{ await api("/admin/rotate-token",{method:"POST",body:JSON.stringify({new_token:nt})});
     TOKEN=nt; session.set("ctf_admin",nt); $("#dzMsg").className="msg ok"; $("#dzMsg").textContent="Rotated. New token active; the old one is dead."; $("#newTok").value=""; $("#newTok").type="password"; }

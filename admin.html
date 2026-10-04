@@ -145,6 +145,13 @@
       <details id="chDetails">
         <summary><h2><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFhM2ZmIiBzdHJva2Utd2lkdGg9IjEuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNOSA2aDExTTkgMTJoMTFNOSAxOGgxMSIvPjxjaXJjbGUgY3g9IjQiIGN5PSI2IiByPSIxIiBmaWxsPSIjNGFhM2ZmIiBzdHJva2U9Im5vbmUiLz48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjEiIGZpbGw9IiM0YWEzZmYiIHN0cm9rZT0ibm9uZSIvPjxjaXJjbGUgY3g9IjQiIGN5PSIxOCIgcj0iMSIgZmlsbD0iIzRhYTNmZiIgc3Ryb2tlPSJub25lIi8+PC9zdmc+"/>Challenges</h2></summary>
         <div class="row"><button id="chReload">Reload</button><span class="dim" id="chCount"></span><button id="chClear" class="danger" style="margin-left:auto" title="Delete every challenge (and all solves on them)">🗑 Remove all challenges</button></div>
+        <div id="chClearBox" class="row" style="display:none;margin-top:8px">
+          <span class="dim">Deletes every challenge and all solves/attempts/hints on them (players stay). Tip: download a backup first. Type <code>DELETE ALL</code>:</span>
+          <input type="text" id="chClearIn" autocomplete="off" aria-label="type DELETE ALL" style="max-width:170px" placeholder="DELETE ALL"/>
+          <button id="chClearGo" class="danger" disabled>Delete everything</button>
+          <button id="chClearCancel">Cancel</button>
+        </div>
+        <div class="msg" id="chClearMsg" role="status"></div>
         <div class="chTblWrap">
           <table id="chTbl">
             <colgroup><col style="width:9%"><col style="width:10%"><col style="width:16%"><col><col style="width:9%"><col style="width:6%"><col style="width:76px"></colgroup>
@@ -190,6 +197,12 @@
         <div class="row">
           <button class="danger" id="reset">Reset scoreboard</button>
           <span class="dim">wipes players, solves, attempts, hints — keeps challenges & event</span>
+        </div>
+        <div id="resetBox" class="row" style="display:none;margin-top:8px">
+          <span class="dim">Type <code>RESET</code> to confirm:</span>
+          <input type="text" id="resetIn" autocomplete="off" aria-label="type RESET" style="max-width:140px" placeholder="RESET"/>
+          <button id="resetGo" class="danger" disabled>Reset now</button>
+          <button id="resetCancel">Cancel</button>
         </div>
         <label style="margin-top:14px">Rotate admin token (new, >= 20 chars)</label>
         <div class="row"><input type="password" id="newTok" style="max-width:340px" placeholder="new token"/>
