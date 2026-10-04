@@ -343,7 +343,10 @@ async function doSubmit(id){
     }
   }catch(e){
     const d=e.data||{}; m.className="msg bad";
-    if(e.status===403 && /register/i.test(e.message)){ forgetIdentity("Your username was removed. Pick one again."); closeModal(); return; }
+    if(e.status===403 && /register/i.test(e.message)){
+      if(!NAME) showNeedNamePopup(); else { forgetIdentity("Your username was removed. Pick one again."); closeModal(); }
+      return;
+    }
     if(d.attempts_left!==undefined && att) att.textContent=d.attempts_left+" attempt(s) left";
     if(d.holdoff_until){ m.textContent="Too fast — wait for the timer."; const c=CH.find(x=>x.id===id); if(c){ c.holdoff_until=d.holdoff_until; tickHoldoff(c); } }
     else m.textContent=e.message;
@@ -355,7 +358,10 @@ async function doHint(id){
     const c=CH.find(x=>x.id===id); if(c){c.hint=j.hint;}
     openChallenge(id); await loadBoard();
   }catch(e){
-    if(e.status===403 && /register/i.test(e.message)){ forgetIdentity("Your username was removed. Pick one again."); closeModal(); return; }
+    if(e.status===403 && /register/i.test(e.message)){
+      if(!NAME) showNeedNamePopup(); else { forgetIdentity("Your username was removed. Pick one again."); closeModal(); }
+      return;
+    }
     alert(e.message);
   }
 }
@@ -364,6 +370,17 @@ function openModal(){
   // remember what opened the dialog — only the first time (unlocking a hint re-renders the already-open dialog)
   if(!m.classList.contains("open")){ lastFocus=document.activeElement; lastFocusId=(lastFocus&&lastFocus.dataset&&lastFocus.dataset.id)||""; }
   m.classList.add("open");
+}
+function showNeedNamePopup(){
+  const card=$("#modalCard");
+  card.innerHTML=`
+    <span class="x" id="close" role="button" tabindex="0" aria-label="Close">✕</span>
+    <h2>Pick a username first</h2>
+    <div class="code-sub">You need to register a username before you can play.</div>
+    <div class="row" style="margin-top:14px"><button class="primary" id="needNameOk">OK</button></div>`;
+  $("#close").onclick=closeModal;
+  $("#needNameOk").onclick=closeModal;
+  openModal();
 }
 function closeModal(){
   clearInterval(holdTimer);
