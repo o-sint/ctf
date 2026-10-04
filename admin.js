@@ -211,6 +211,13 @@ function editChallenge(c){
   window.scrollTo({top:$("#c_id").getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"});
 }
 $("#chReload").onclick=loadChallenges;
+$("#chClear").onclick=async()=>{
+  const n=($("#chCount").textContent||"").trim()||"all challenges";
+  const w=prompt("This deletes "+n+" AND every solve, attempt and hint unlock on them.\nPlayers stay registered. Tip: use \"Download current challenges (backup)\" first.\n\nType DELETE ALL to confirm:");
+  if(w!=="DELETE ALL") return;
+  try{ const j=await api("/admin/challenges/clear",{method:"POST"}); await loadChallenges(); alert("Removed "+j.removed+" challenge"+(j.removed===1?"":"s")+"."); }
+  catch(e){ alert(e.message); }
+};
 
 async function loadUsers(){
   const j=await api("/admin/users");

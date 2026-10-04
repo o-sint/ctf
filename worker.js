@@ -519,6 +519,18 @@ async function admin(req, env, bust, p, body) {
   if (m === "POST" && p === "/admin/challenges") return await adminChallenges(env, bust, body);
   if (m === "GET" && p === "/admin/challenges") return await adminListChallenges(env);
   if (m === "DELETE" && p.startsWith("/admin/challenge/")) return await adminDeleteChallenge(env, bust, decodeURIComponent(p.slice("/admin/challenge/".length)));
+  if (m === "POST" && p === "/admin/challenges/clear") { // remove EVERY challenge (+ their solves/attempts/hint unlocks); players, join code, icons and the event are kept
+    const { n } = await env.DB.prepare("SELECT COUNT(*) n FROM challenges").first();
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM solves"),
+      env.DB.prepare("DELETE FROM attempts"),
+      env.DB.prepare("DELETE FROM hint_unlocks"),
+      env.DB.prepare("DELETE FROM challenges"),
+    ]);
+    await bust();
+    audit(req, "challenges_cleared", { removed: n });
+    return json({ ok: true, removed: n });
+  }
   if (m === "GET" && p === "/admin/users") return await adminUsers(env);
   if (m === "POST" && p === "/admin/user/rename") return await adminRenameUser(env, bust, body);
   if (m === "DELETE" && p.startsWith("/admin/user/")) return await unregister(env, bust, { uuid: decodeURIComponent(p.slice("/admin/user/".length)) });
