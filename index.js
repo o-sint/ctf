@@ -24,7 +24,7 @@ function newUuid(){
 let UUID = store.get(uuidKey);
 if(!UUID){ UUID = newUuid(); store.set(uuidKey,UUID); }
 let NAME = store.get(nameKey) || "";
-let STATE=null, CH=[], ICONS={};
+let STATE=null, CH=[], ICONS={}, LOCKED=false; // LOCKED: server says questions are hidden from this (unregistered) visitor
 let OFFSET=0, LAST_PHASE="", BOARD_SIG="", CH_SIG="", holdTimer=0, lastFocus=null, lastFocusId="";
 const serverNow=()=>Date.now()+OFFSET; // server-time clock (offset measured from /state)
 
@@ -80,7 +80,7 @@ async function promptName(v,code,errTarget){
   const name=(v||"").trim(); if(!name) return;
   try{
     const j=await api("/register",{method:"POST",body:JSON.stringify({uuid:UUID,name,code:code||""})});
-    NAME=j.name; store.set(nameKey,NAME); renderIdbar(); loadBoard().catch(()=>{});
+    NAME=j.name; store.set(nameKey,NAME); renderIdbar(); loadBoard().catch(()=>{}); CH_SIG=""; loadChallenges().catch(()=>{});
     if(errTarget) closeModal();
   }catch(e){
     const m=errTarget?$(errTarget):$("#joinMsg");
@@ -90,10 +90,10 @@ async function promptName(v,code,errTarget){
 async function removeMe(){
   if(!confirm("Remove your username and all your solves?")) return;
   try{ await api("/unregister",{method:"POST",body:JSON.stringify({uuid:UUID})}); }catch(e){}
-  forgetIdentity(); CH_SIG=""; loadChallenges().catch(()=>{});
+  forgetIdentity();
 }
 function forgetIdentity(note){
-  NAME=""; store.del(nameKey); BOARD_SIG=""; renderIdbar();
+  NAME=""; store.del(nameKey); BOARD_SIG=""; CH_SIG=""; renderIdbar(); loadChallenges().catch(()=>{});
   if(note){ const m=$("#joinMsg"); if(m){ m.textContent=note; m.className="sub bad"; } }
   loadBoard().catch(()=>{});
 }
@@ -238,7 +238,7 @@ function drawWorm(top, byName, event, allSolves){
 async function loadChallenges(){
   const note=$("#chNote"), cats=$("#cats");
   const j=await api("/challenges?uuid="+encodeURIComponent(UUID));
-  CH=j.challenges; ICONS=j.icons||{}; const icons=ICONS;
+  CH=j.challenges; ICONS=j.icons||{}; const icons=ICONS; LOCKED=!!j.locked;
   const sig=(STATE?STATE.phase:"")+"|"+JSON.stringify(j);
   if(sig===CH_SIG) return; CH_SIG=sig; // nothing changed: skip the DOM rebuild
   if(j.phase==="pre"||j.phase==="unset"){ note.textContent = j.phase==="pre"?"Challenges unlock when the event starts.":"No event scheduled yet."; cats.innerHTML=""; $("#chTotal").textContent=""; return; }
@@ -264,8 +264,20 @@ async function loadChallenges(){
     cats.appendChild(div);
   });
 }
+function openJoinNudge(){
+  $("#modalCard").innerHTML=`
+    <span class="x" id="close" role="button" tabindex="0" aria-label="Close">✕</span>
+    <h2>🔒 Join to see the questions</h2>
+    <div class="code-sub">Questions are only shown to registered players. Pick a username${STATE&&STATE.code_required?" and enter the access code":""} to play.</div>
+    <div class="row code-sub"><button class="primary" id="nudgeGo">Pick a username</button></div>`;
+  $("#close").onclick=closeModal;
+  $("#nudgeGo").onclick=()=>{ closeModal(); window.scrollTo({top:0,behavior:"smooth"}); const n=$("#nameIn"); if(n) n.focus(); };
+  openModal();
+  $("#nudgeGo").focus();
+}
 function openChallenge(id){
   const c=CH.find(x=>x.id===id); if(!c) return;
+  if(LOCKED){ openJoinNudge(); return; }
   const card=$("#modalCard");
   const hintCtl = c.has_hint ? (c.hint
       ? `<div class="hintbox"><div class="sub">Hint (unlocked)</div><div class="h">${esc(c.hint)}</div></div>`

@@ -228,9 +228,15 @@ async function getChallenges(req, env) {
       env.DB.prepare("SELECT challenge_id FROM solves WHERE uuid=?").bind(uuid),
       env.DB.prepare("SELECT challenge_id,count,last_ms FROM attempts WHERE uuid=?").bind(uuid),
       env.DB.prepare("SELECT challenge_id FROM hint_unlocks WHERE uuid=?").bind(uuid),
+      env.DB.prepare("SELECT 1 x FROM users WHERE uuid=?").bind(uuid),
     );
   }
   const res = (await env.DB.batch(stmts)).map((r) => r.results);
+  // While the event is live, only registered players (who had to pass the access code) get the question text.
+  // Everyone else still gets title/category/points/solve counts, so the cards and leaderboard keep working.
+  // After the event ends the questions are public (the answers are revealed then anyway).
+  const registered = !!(res[6] && res[6].length);
+  const locked = phase === "live" && !registered;
   const nBy = {}; res[1].forEach((r) => (nBy[r.challenge_id] = r.n));
   const overrides = parseOverrides(res[2][0] && res[2][0].value);
   const solved = new Set((res[3] || []).map((r) => r.challenge_id));
@@ -241,7 +247,7 @@ async function getChallenges(req, env) {
     .map((ch) => {
       const at = att[ch.id];
       return { // NOTE: no `answers`/`solution` here — never sent to players
-        id: ch.id, category: ch.category, title: ch.title, prompt: ch.prompt,
+        id: ch.id, category: ch.category, title: ch.title, prompt: locked ? "" : ch.prompt,
         value: currentValue(ch, nBy[ch.id] || 0), solves: nBy[ch.id] || 0,
         has_hint: !!(ch.hint && ch.hint.trim()), hint_cost: ch.hint_cost,
         hint: ch.hint && (hinted.has(ch.id) || phase === "post") ? ch.hint : null, // hints are free once the event is over
@@ -252,7 +258,7 @@ async function getChallenges(req, env) {
     });
   const icons = {};
   list.forEach((c) => { icons[c.category] = iconFor(c.category, overrides); });
-  return json({ phase, challenges: list, icons });
+  return json({ phase, challenges: list, icons, locked });
 }
 
 async function joinCode(env) {
