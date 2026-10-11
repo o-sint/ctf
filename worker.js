@@ -131,6 +131,18 @@ function currentValue(ch, scoredSolves) {
   const v = Math.ceil(((ch.minimum - ch.initial) / (d * d)) * (scoredSolves * scoredSolves) + ch.initial);
   return Math.max(ch.minimum, v);
 }
+// Points are fixed at solve time: the Nth scored solver of a challenge gets value(N-1 earlier solves) and keeps it.
+// `rows` must be ordered by (ts_ms, rowid). Derived from solve order, so no schema change is needed.
+function awardPoints(chBy, rows) {
+  const seen = {};
+  return rows.map((s) => {
+    const ch = chBy[s.challenge_id];
+    if (!ch || s.scored === 0) return 0;
+    const k = seen[s.challenge_id] || 0;
+    seen[s.challenge_id] = k + 1;
+    return currentValue(ch, k);
+  });
+}
 async function scoreMaps(env) {
   const [chs, solves] = (await env.DB.batch([
     env.DB.prepare("SELECT * FROM challenges WHERE active=1"),
@@ -143,20 +155,20 @@ async function scoreMaps(env) {
 }
 
 async function getLeaderboard(env) {
-  const [chs, cnts, solves, hints, users] = (await env.DB.batch([
+  const [chs, solves, hints, users] = (await env.DB.batch([
     env.DB.prepare("SELECT id,initial,minimum,decay FROM challenges WHERE active=1"),
-    env.DB.prepare("SELECT challenge_id, COUNT(*) n FROM solves WHERE scored=1 GROUP BY challenge_id"),
-    env.DB.prepare("SELECT uuid, challenge_id, ts_ms FROM solves WHERE scored=1"),
+    env.DB.prepare("SELECT uuid, challenge_id, ts_ms, scored FROM solves WHERE scored=1 ORDER BY ts_ms, rowid"),
     env.DB.prepare("SELECT h.uuid, SUM(c.hint_cost) c FROM hint_unlocks h JOIN challenges c ON c.id=h.challenge_id GROUP BY h.uuid"),
     env.DB.prepare("SELECT uuid, name FROM users"),
   ])).map((r) => r.results);
-  const n = {}; cnts.forEach((r) => (n[r.challenge_id] = r.n));
-  const val = {}; chs.forEach((c) => (val[c.id] = currentValue(c, n[c.id] || 0)));
+  const chBy = {}; chs.forEach((c) => (chBy[c.id] = c));
+  const pts = awardPoints(chBy, solves);
   const score = {}, last = {}, cnt = {};
   users.forEach((u) => { score[u.uuid] = 0; last[u.uuid] = 0; cnt[u.uuid] = 0; });
-  for (const s of solves) {
-    if (!(s.uuid in score) || !(s.challenge_id in val)) continue;
-    score[s.uuid] += val[s.challenge_id]; cnt[s.uuid]++;
+  for (let i = 0; i < solves.length; i++) {
+    const s = solves[i];
+    if (!(s.uuid in score) || !(s.challenge_id in chBy)) continue;
+    score[s.uuid] += pts[i]; cnt[s.uuid]++;
     if (s.ts_ms > last[s.uuid]) last[s.uuid] = s.ts_ms;
   }
   hints.forEach((h) => { if (h.uuid in score) score[h.uuid] -= h.c || 0; });
@@ -195,14 +207,15 @@ async function getTimeline(env) {
   const start = Number(cfgGet(c, "event_start", 0)), end = Number(cfgGet(c, "event_end", 0));
   const phase = phaseFrom(start, end, now);
   if (phase === "pre" || phase === "unset") return { phase, event: {}, solves: [] };
-  const [{ valBy }, rows] = await Promise.all([
+  const [{ chBy }, rows] = await Promise.all([
     scoreMaps(env),
-    env.DB.prepare("SELECT u.name, s.challenge_id, s.ts_ms FROM solves s JOIN users u ON u.uuid=s.uuid WHERE s.scored=1 ORDER BY s.ts_ms").all(),
+    env.DB.prepare("SELECT u.name, s.challenge_id, s.ts_ms, s.scored FROM solves s JOIN users u ON u.uuid=s.uuid WHERE s.scored=1 ORDER BY s.ts_ms, s.rowid").all(),
   ]);
+  const pts = awardPoints(chBy, rows.results);
   return {
     phase,
     event: { start, end },
-    solves: rows.results.map((s) => ({ name: s.name, ts_ms: s.ts_ms, points: valBy[s.challenge_id] || 0 })),
+    solves: rows.results.map((s, i) => ({ name: s.name, ts_ms: s.ts_ms, points: pts[i] })),
   };
 }
 
@@ -341,8 +354,15 @@ async function submit(env, bust, b) {
   const ins = await env.DB.prepare("INSERT OR IGNORE INTO solves(uuid,challenge_id,ts_ms,scored) VALUES(?,?,?,?)").bind(uuid, cid, now, scored).run();
   if (!ins.meta.changes) return err("already solved", 409);
   await bust();
-  const { valBy } = await scoreMaps(env);
-  return json({ correct: true, scored: !!scored, points: scored ? (valBy[cid] || ch.minimum) : 0 });
+  let points = 0;
+  if (scored) {
+    const { chBy } = await scoreMaps(env);
+    const rows = (await env.DB.prepare("SELECT uuid, challenge_id, scored FROM solves WHERE scored=1 AND challenge_id=? ORDER BY ts_ms, rowid").bind(cid).all()).results;
+    const pts = awardPoints(chBy, rows);
+    const i = rows.findIndex((r) => r.uuid === uuid);
+    points = i >= 0 ? pts[i] : ch.minimum;
+  }
+  return json({ correct: true, scored: !!scored, points });
 }
 
 async function buyHint(env, bust, b) {
@@ -484,11 +504,12 @@ async function adminRenameUser(env, bust, b) {
 
 async function adminExport(env) {
   const board = await getLeaderboard(env);
-  const { valBy } = await scoreMaps(env);
+  const { chBy } = await scoreMaps(env);
   const c = await getConfig(env, ["event_name", "event_start", "event_end"]);
   const solves = (await env.DB.prepare(
-    "SELECT u.name, s.challenge_id, s.ts_ms, s.scored FROM solves s JOIN users u ON u.uuid=s.uuid ORDER BY s.ts_ms"
+    "SELECT u.name, s.challenge_id, s.ts_ms, s.scored FROM solves s JOIN users u ON u.uuid=s.uuid ORDER BY s.ts_ms, s.rowid"
   ).all()).results;
+  const pts = awardPoints(chBy, solves);
   return json({
     generated: new Date().toISOString(),
     event: {
@@ -500,10 +521,10 @@ async function adminExport(env) {
       rank: i + 1, name: b.name, score: b.score, solves: b.solves,
       last_solve: b.last ? new Date(b.last).toISOString() : "",
     })),
-    solves: solves.map((s) => ({
+    solves: solves.map((s, i) => ({
       name: s.name, challenge_id: s.challenge_id, ts_ms: s.ts_ms,
       ts: new Date(s.ts_ms).toISOString(), scored: !!s.scored,
-      points: s.scored ? (valBy[s.challenge_id] || 0) : 0,
+      points: pts[i],
     })),
   });
 }
