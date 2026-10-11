@@ -268,12 +268,15 @@ function openJoinNudge(){
   $("#modalCard").innerHTML=`
     <span class="x" id="close" role="button" tabindex="0" aria-label="Close">✕</span>
     <h2>🔒 Join to see the questions</h2>
-    <div class="code-sub">Questions are only shown to registered players. Pick a username${STATE&&STATE.code_required?" and enter the access code":""} to play.</div>
-    <div class="row code-sub"><button class="primary" id="nudgeGo">Pick a username</button></div>`;
+    ${STATE&&STATE.phase==="post"
+      ? `<div class="code-sub">The event has ended. Questions and answers are only available to players who joined before it ended.</div>`
+      : `<div class="code-sub">Questions are only shown to registered players. Pick a username${STATE&&STATE.code_required?" and enter the access code":""} to play.</div>
+    <div class="row code-sub"><button class="primary" id="nudgeGo">Pick a username</button></div>`}`;
   $("#close").onclick=closeModal;
-  $("#nudgeGo").onclick=()=>{ closeModal(); window.scrollTo({top:0,behavior:"smooth"}); const n=$("#nameIn"); if(n) n.focus(); };
+  const go=$("#nudgeGo");
+  if(go) go.onclick=()=>{ closeModal(); window.scrollTo({top:0,behavior:"smooth"}); const n=$("#nameIn"); if(n) n.focus(); };
   openModal();
-  $("#nudgeGo").focus();
+  (go||$("#close")).focus();
 }
 function openChallenge(id){
   const c=CH.find(x=>x.id===id); if(!c) return;

@@ -240,13 +240,15 @@ async function getChallenges(req, env) {
       env.DB.prepare("SELECT challenge_id FROM solves WHERE uuid=?").bind(uuid),
       env.DB.prepare("SELECT challenge_id,count,last_ms FROM attempts WHERE uuid=?").bind(uuid),
       env.DB.prepare("SELECT challenge_id FROM hint_unlocks WHERE uuid=?").bind(uuid),
-      env.DB.prepare("SELECT 1 x FROM users WHERE uuid=?").bind(uuid),
+      env.DB.prepare("SELECT created_ms FROM users WHERE uuid=?").bind(uuid),
     );
   }
   const res = (await env.DB.batch(stmts)).map((r) => r.results);
   // While the event is live or after it ends, only registered players (who had to pass the access code) get the
   // question text, hints and answers. Everyone else still gets title/category/points/solve counts, so the cards and leaderboard keep working.
-  const registered = !!(res[6] && res[6].length);
+  // After the event ends, only players who registered before the end keep access.
+  const endMs = phase === "post" ? Number(await cfg(env, "event_end", 0)) : 0;
+  const registered = !!(res[6] && res[6].length) && (phase !== "post" || res[6][0].created_ms <= endMs);
   const locked = (phase === "live" || phase === "post") && !registered;
   const nBy = {}; res[1].forEach((r) => (nBy[r.challenge_id] = r.n));
   const overrides = parseOverrides(res[2][0] && res[2][0].value);
@@ -380,7 +382,8 @@ async function buyHint(env, bust, b) {
 async function getSolutions(req, env) {
   if ((await phaseOf(env, Date.now())) !== "post") return err("solutions reveal after the event ends", 403);
   const uuid = playerId(req);
-  if (!uuid || !(await env.DB.prepare("SELECT 1 x FROM users WHERE uuid=?").bind(uuid).first())) return err("register a username first", 403);
+  const u = uuid && (await env.DB.prepare("SELECT created_ms FROM users WHERE uuid=?").bind(uuid).first());
+  if (!u || u.created_ms > Number(await cfg(env, "event_end", 0))) return err("only players who joined before the event ended can view answers", 403);
   const rows = (await env.DB.prepare("SELECT id,category,title,solution FROM challenges WHERE active=1 ORDER BY category,sort,title").all()).results;
   return json({ solutions: rows });
 }
