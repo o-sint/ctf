@@ -16,7 +16,7 @@ challenges.sample.json 20 challenges, ready to bulk-load
 ## Architecture
 - **Identity:** client UUID in `localStorage` is the real identity; username is a mutable label. Clear site data => lose your seat (by design).
 - **Answers:** stored as editable plaintext on the challenge row (one accepted answer per line), returned only by `GET /api/admin/challenges` behind the bearer token. Grading is server-side, so players never receive answers. See **Answer exposure** below.
-- **Scoring:** CTFd dynamic decay -- `value = max(min, ceil((min-init)/decay^2 * solves^2 + init))`. Everyone holding a solve shows the challenge's *current* value.
+- **Scoring:** CTFd dynamic decay -- `value = max(min, ceil((min-init)/decay^2 * solves^2 + init))`. Points are fixed at solve time: the Nth solver earns the value with N-1 earlier solves and keeps it (first solver keeps the max).
 - **Gate:** before `start`, `/challenges` is empty and `/submit` refused. After `end`, submissions still validate for practice but score 0; the Reveal button serves `solution` text.
 - **Anti-brute:** per-user `attempts_max` (default 10) + `holdoff_ms` cooldown after each wrong answer, per challenge. Add Cloudflare rate-limiting on top (below).
 
