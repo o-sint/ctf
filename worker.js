@@ -127,9 +127,8 @@ async function phaseOf(env, now) {
 
 // ---------- scoring ----------
 function currentValue(ch, scoredSolves) {
-  const d = Math.max(1, ch.decay);
-  const v = Math.ceil(((ch.minimum - ch.initial) / (d * d)) * (scoredSolves * scoredSolves) + ch.initial);
-  return Math.max(ch.minimum, v);
+  // flat step: each earlier solve lowers the value by `decay` points, never below `minimum`
+  return Math.max(ch.minimum, ch.initial - Math.max(0, ch.decay) * scoredSolves);
 }
 // Points are fixed at solve time: the Nth scored solver of a challenge gets value(N-1 earlier solves) and keeps it.
 // `rows` must be ordered by (ts_ms, rowid). Derived from solve order, so no schema change is needed.
@@ -407,7 +406,7 @@ function validateChallenge(c) {
     row: {
       id, category, title, prompt: str(c.prompt, 8000),
       initial, minimum: Math.min(initial, clampInt(c.minimum, 50, 1, 100000)),
-      decay: clampInt(c.decay, 20, 1, 10000),
+      decay: clampInt(c.decay, 5, 0, 10000),
       attempts_max: clampInt(c.attempts_max, 10, 1, 1000),
       holdoff_ms: clampInt(c.holdoff_ms, 30000, 0, 3600000),
       hint: str(c.hint, 2000).trim() || null,

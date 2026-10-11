@@ -133,7 +133,7 @@ function genChallengeId(){
 $("#c_new").onclick=()=>{
   ["c_cat","c_title","c_prompt","c_hint","c_answers","c_sol"].forEach(id=>$("#"+id).value="");
   $("#c_id").value=genChallengeId();
-  $("#c_initial").value=100; $("#c_min").value=50; $("#c_decay").value=20;
+  $("#c_initial").value=100; $("#c_min").value=50; $("#c_decay").value=5;
   $("#c_att").value=10; $("#c_hold").value=30; $("#c_hcost").value=0;
   $("#c_msg").className="msg dim"; $("#c_msg").textContent="New challenge. Fill in and Save.";
   $("#c_id").focus();

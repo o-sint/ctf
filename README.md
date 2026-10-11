@@ -16,7 +16,7 @@ challenges.sample.json 20 challenges, ready to bulk-load
 ## Architecture
 - **Identity:** client UUID in `localStorage` is the real identity; username is a mutable label. Clear site data => lose your seat (by design).
 - **Answers:** stored as editable plaintext on the challenge row (one accepted answer per line), returned only by `GET /api/admin/challenges` behind the bearer token. Grading is server-side, so players never receive answers. See **Answer exposure** below.
-- **Scoring:** CTFd dynamic decay -- `value = max(min, ceil((min-init)/decay^2 * solves^2 + init))`. Points are fixed at solve time: the Nth solver earns the value with N-1 earlier solves and keeps it (first solver keeps the max).
+- **Scoring:** flat step -- the first solver gets `initial`; each later solver gets the previous solver's points minus `decay`, never below `minimum`. Points are fixed at solve time and never drop for earlier solvers.
 - **Gate:** before `start`, `/challenges` is empty and `/submit` refused. After `end`, submissions still validate for practice but score 0; the Reveal button serves `solution` text.
 - **Anti-brute:** per-user `attempts_max` (default 10) + `holdoff_ms` cooldown after each wrong answer, per challenge. Add Cloudflare rate-limiting on top (below).
 
@@ -72,7 +72,7 @@ No auth, but no forged solves (grading is server-side). A determined student can
   "category": "GEO",
   "title": "What does it say",
   "prompt": "question text; include any target URL",
-  "initial": 150, "minimum": 75, "decay": 20,
+  "initial": 150, "minimum": 75, "decay": 5,
   "attempts_max": 10, "holdoff_ms": 30000,
   "hint": "optional", "hint_cost": 30,
   "answers": ["accepted", "variants"],
