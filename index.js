@@ -408,7 +408,7 @@ $("#modal").addEventListener("keydown",(e)=>{ if((e.key==="Enter"||e.key===" ") 
 let SOLUTIONS_CACHE=null;
 async function solutionFor(id){
   if(!SOLUTIONS_CACHE){
-    const j=await api("/solutions");
+    const j=await api("/solutions",{headers:{"X-Player-Id":UUID}});
     SOLUTIONS_CACHE={}; j.solutions.forEach(s=>{SOLUTIONS_CACHE[s.id]=s.solution;});
   }
   return SOLUTIONS_CACHE[id];

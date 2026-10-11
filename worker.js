@@ -244,11 +244,10 @@ async function getChallenges(req, env) {
     );
   }
   const res = (await env.DB.batch(stmts)).map((r) => r.results);
-  // While the event is live, only registered players (who had to pass the access code) get the question text.
-  // Everyone else still gets title/category/points/solve counts, so the cards and leaderboard keep working.
-  // After the event ends the questions are public (the answers are revealed then anyway).
+  // While the event is live or after it ends, only registered players (who had to pass the access code) get the
+  // question text, hints and answers. Everyone else still gets title/category/points/solve counts, so the cards and leaderboard keep working.
   const registered = !!(res[6] && res[6].length);
-  const locked = phase === "live" && !registered;
+  const locked = (phase === "live" || phase === "post") && !registered;
   const nBy = {}; res[1].forEach((r) => (nBy[r.challenge_id] = r.n));
   const overrides = parseOverrides(res[2][0] && res[2][0].value);
   const solved = new Set((res[3] || []).map((r) => r.challenge_id));
@@ -262,7 +261,7 @@ async function getChallenges(req, env) {
         id: ch.id, category: ch.category, title: ch.title, prompt: locked ? "" : ch.prompt,
         value: currentValue(ch, nBy[ch.id] || 0), solves: nBy[ch.id] || 0,
         has_hint: !!(ch.hint && ch.hint.trim()), hint_cost: ch.hint_cost,
-        hint: ch.hint && (hinted.has(ch.id) || phase === "post") ? ch.hint : null, // hints are free once the event is over
+        hint: ch.hint && !locked && (hinted.has(ch.id) || phase === "post") ? ch.hint : null, // hints are free once the event is over
         solved: solved.has(ch.id),
         attempts_left: Math.max(0, ch.attempts_max - (at ? at.count : 0)),
         holdoff_until: at ? at.last_ms + ch.holdoff_ms : 0,
@@ -378,8 +377,10 @@ async function buyHint(env, bust, b) {
   return json({ hint: ch.hint, cost: ch.hint_cost });
 }
 
-async function getSolutions(env) {
+async function getSolutions(req, env) {
   if ((await phaseOf(env, Date.now())) !== "post") return err("solutions reveal after the event ends", 403);
+  const uuid = playerId(req);
+  if (!uuid || !(await env.DB.prepare("SELECT 1 x FROM users WHERE uuid=?").bind(uuid).first())) return err("register a username first", 403);
   const rows = (await env.DB.prepare("SELECT id,category,title,solution FROM challenges WHERE active=1 ORDER BY category,sort,title").all()).results;
   return json({ solutions: rows });
 }
@@ -628,7 +629,7 @@ async function handle(req, env, ctx) {
     if (p === "/leaderboard") return await cachedJson(req, ctx, p, async () => ({ board: await getLeaderboard(env) }));
     if (p === "/timeline") return await cachedJson(req, ctx, p, () => getTimeline(env));
     if (p === "/challenges") return await getChallenges(req, env);
-    if (p === "/solutions") return await getSolutions(env);
+    if (p === "/solutions") return await getSolutions(req, env);
   }
   if (m === "POST") {
     if (p === "/register" || p === "/rename") return await register(env, bust, body);
